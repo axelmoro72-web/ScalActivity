@@ -28,6 +28,7 @@ type SessionState = "loading" | "ready" | "invalid" | "expired";
 export default function SetPasswordPage() {
   const router = useRouter();
   const [sessionState, setSessionState] = useState<SessionState>("loading");
+  const [sessionDetail, setSessionDetail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,13 +49,22 @@ export default function SetPasswordPage() {
       }
 
       if (access_token && refresh_token) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token,
-          refresh_token,
-        });
+        let failure: string | null = null;
+        try {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+          failure = sessionError
+            ? `${sessionError.name}: ${sessionError.message}`
+            : null;
+        } catch (e) {
+          failure = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        }
         // Le lien ne doit pas rester dans l'historique du navigateur.
         window.history.replaceState(null, "", window.location.pathname);
-        setSessionState(sessionError ? "invalid" : "ready");
+        setSessionDetail(failure);
+        setSessionState(failure ? "invalid" : "ready");
         return;
       }
 
@@ -132,6 +142,11 @@ export default function SetPasswordPage() {
               <AlertDescription>
                 Lien d&apos;invitation invalide ou expiré. Demandez une
                 nouvelle invitation.
+                {sessionDetail && (
+                  <span className="mt-2 block font-mono text-xs">
+                    Détail technique : {sessionDetail}
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           )}
