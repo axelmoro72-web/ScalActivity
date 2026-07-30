@@ -29,9 +29,11 @@ export async function inviteMember(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   const admin = createAdminClient();
+  // La redirection de l'email par défaut porte la session en fragment
+  // d'URL : la cible doit être la page client qui sait le traiter.
   const { error } = await admin.auth.admin.inviteUserByEmail(
     parsed.data.email,
-    { redirectTo: `${siteUrl}/auth/confirm?next=/auth/set-password` },
+    { redirectTo: `${siteUrl}/auth/set-password` },
   );
 
   if (error) {

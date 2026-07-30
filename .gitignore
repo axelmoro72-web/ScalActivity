@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Config locale outillage Claude (chemins machine)
 .claude/
+.vercel
+.env*

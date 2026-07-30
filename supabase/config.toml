@@ -163,7 +163,9 @@ site_url = "https://scalactivity.vercel.app"
 # localhost autorisé pour le dev local (pas de base locale sur ce poste).
 additional_redirect_urls = [
   "https://scalactivity.vercel.app/auth/confirm",
+  "https://scalactivity.vercel.app/auth/set-password",
   "http://localhost:3000/auth/confirm",
+  "http://localhost:3000/auth/set-password",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
@@ -247,9 +249,13 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
+# Template personnalisé prêt dans ./supabase/templates/invite.html (lien
+# token_hash vers /auth/confirm), mais le tier gratuit interdit la
+# personnalisation sans SMTP custom : en attendant, l'app gère le flux par
+# défaut (tokens dans le fragment, traités par /auth/set-password).
+# À décommenter quand un SMTP sera configuré :
 # [auth.email.template.invite]
-# subject = "You have been invited"
+# subject = "Invitation à rejoindre ScalActivity"
 # content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
