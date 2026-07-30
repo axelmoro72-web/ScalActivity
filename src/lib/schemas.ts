@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parisInputToDate } from "@/lib/format";
 
 // Schémas partagés client/serveur. Toute entrée utilisateur repasse par
 // ces schémas côté serveur, la validation client n'est que du confort.
@@ -37,6 +38,22 @@ export const euroAmountToCents = z
     return parseInt(euros, 10) * 100 + parseInt(decimals.padEnd(2, "0") || "0", 10);
   });
 
+/**
+ * Date saisie dans un `<input type="datetime-local">` : une heure murale
+ * sans fuseau, toujours interprétée en heure de Paris. Sans cela, le
+ * serveur (UTC sur Vercel) la lirait dans son propre fuseau.
+ */
+function parisDateTime(label: string) {
+  return z.string().transform((v, ctx) => {
+    const d = parisInputToDate(v);
+    if (!d) {
+      ctx.addIssue({ code: "custom", message: label });
+      return z.NEVER;
+    }
+    return d;
+  });
+}
+
 const eventFieldsSchema = z.object({
   title: z.string().trim().min(1, "Titre requis").max(200),
   sport: z.string().trim().min(1, "Sport requis").max(100),
@@ -45,10 +62,11 @@ const eventFieldsSchema = z.object({
     .trim()
     .max(200)
     .transform((v) => (v === "" ? null : v)),
-  startsAt: z.coerce.date({ error: "Date de début invalide" }),
-  endsAt: z
-    .union([z.literal(""), z.coerce.date({ error: "Date de fin invalide" })])
-    .transform((v) => (v === "" ? null : v)),
+  startsAt: parisDateTime("Date de début invalide"),
+  endsAt: z.union([
+    z.literal("").transform(() => null),
+    parisDateTime("Date de fin invalide"),
+  ]),
   capacity: z.coerce
     .number({ error: "Nombre de places invalide" })
     .int("Nombre de places entier requis")

@@ -5,18 +5,10 @@ import { use, useActionState, useState } from "react";
 import { updateEvent, type ActionState } from "../../actions";
 import { useCurrentProfile, useEvent, useParticipants } from "@/lib/queries";
 import { euroAmountToCents } from "@/lib/schemas";
-import { formatCents } from "@/lib/format";
+import { dateToParisInput, formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-/** Valeur d'un <input type="datetime-local"> à partir d'un ISO UTC. */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 /** Centimes → saisie en euros ("1250" → "12,50"). */
 function centsToInput(cents: number): string {
@@ -105,6 +97,7 @@ export default function EditEventPage({
           </h1>
           <p className="mt-1 text-[13px] text-[var(--header-nav)]">
             Ajouter des places promeut automatiquement la liste d&apos;attente.
+            Heures de Paris.
           </p>
         </div>
         <form action={formAction} className="flex flex-col gap-4 px-6 py-5">
@@ -130,7 +123,7 @@ export default function EditEventPage({
               <Input
                 name="startsAt"
                 type="datetime-local"
-                defaultValue={toLocalInput(event.starts_at)}
+                defaultValue={dateToParisInput(event.starts_at)}
                 required
               />
             </Field>
@@ -138,7 +131,7 @@ export default function EditEventPage({
               <Input
                 name="endsAt"
                 type="datetime-local"
-                defaultValue={toLocalInput(event.ends_at)}
+                defaultValue={dateToParisInput(event.ends_at)}
               />
             </Field>
           </div>

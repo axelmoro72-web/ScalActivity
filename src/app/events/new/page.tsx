@@ -47,7 +47,7 @@ export default function NewEventPage() {
             Nouvel événement
           </h1>
           <p className="mt-1 text-[13px] text-[var(--header-nav)]">
-            Le coût total est réparti entre les places.
+            Le coût total est réparti entre les places. Heures de Paris.
           </p>
         </div>
         <form action={formAction} className="flex flex-col gap-4 px-6 py-5">
