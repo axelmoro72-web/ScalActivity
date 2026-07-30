@@ -48,73 +48,91 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Palette issue de la charte graphique Scalian :
+ *   violet principal  #4B2882 (Pantone 2617C)
+ *   violet profond    #2A164A
+ *   lavande           #CDBBDC
+ *   gris              #AEADBB
+ *   texte             #000000
+ * Le violet est majoritaire, les autres couleurs l'accompagnent,
+ * aplats 100 % et dégradés par transparence uniquement.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --scalian-violet: #4b2882;
+  --scalian-violet-profond: #2a164a;
+  --scalian-lavande: #cdbbdc;
+  --scalian-gris: #aeadbb;
+
+  --font-sans: "Aptos", "Segoe UI", var(--font-geist-sans), system-ui,
+    sans-serif;
+
+  --background: #faf9fc;
+  --foreground: #17111f;
+  --card: #ffffff;
+  --card-foreground: #17111f;
+  --popover: #ffffff;
+  --popover-foreground: #17111f;
+  --primary: var(--scalian-violet);
+  --primary-foreground: #ffffff;
+  --secondary: #ede8f4;
+  --secondary-foreground: var(--scalian-violet-profond);
+  --muted: #f1eef6;
+  --muted-foreground: #6b6779;
+  --accent: #ede8f4;
+  --accent-foreground: var(--scalian-violet-profond);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: #e3dded;
+  --input: #e3dded;
+  --ring: var(--scalian-violet);
+  --chart-1: var(--scalian-violet);
+  --chart-2: var(--scalian-lavande);
+  --chart-3: var(--scalian-violet-profond);
+  --chart-4: var(--scalian-gris);
+  --chart-5: #17111f;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #17111f;
+  --sidebar-primary: var(--scalian-violet);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ede8f4;
+  --sidebar-accent-foreground: var(--scalian-violet-profond);
+  --sidebar-border: #e3dded;
+  --sidebar-ring: var(--scalian-violet);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #171021;
+  --foreground: #f2eff7;
+  --card: #211737;
+  --card-foreground: #f2eff7;
+  --popover: #211737;
+  --popover-foreground: #f2eff7;
+  --primary: var(--scalian-lavande);
+  --primary-foreground: var(--scalian-violet-profond);
+  --secondary: #2a164a;
+  --secondary-foreground: #f2eff7;
+  --muted: #291d40;
+  --muted-foreground: var(--scalian-gris);
+  --accent: #2a164a;
+  --accent-foreground: #f2eff7;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: var(--scalian-lavande);
+  --chart-1: var(--scalian-lavande);
+  --chart-2: var(--scalian-violet);
+  --chart-3: var(--scalian-gris);
+  --chart-4: #f2eff7;
+  --chart-5: #2a164a;
+  --sidebar: #211737;
+  --sidebar-foreground: #f2eff7;
+  --sidebar-primary: var(--scalian-lavande);
+  --sidebar-primary-foreground: var(--scalian-violet-profond);
+  --sidebar-accent: #2a164a;
+  --sidebar-accent-foreground: #f2eff7;
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: var(--scalian-lavande);
 }
 
 @layer base {
@@ -126,5 +144,26 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Titraille en écho à la Sackers Gothic Std (capitales uniquement) —
+     police sous licence, non embarquée : on en reprend l'esprit. */
+  .titraille {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+  }
+
+  /* Filet fin en dégradé violet → lavande (univers formel : filets fins,
+     dégradés par transparence autorisés). */
+  .filet-scalian {
+    background-image: linear-gradient(
+      90deg,
+      var(--scalian-violet),
+      var(--scalian-lavande) 60%,
+      transparent
+    );
   }
 }

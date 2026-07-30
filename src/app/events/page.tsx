@@ -58,7 +58,9 @@ export default function EventsPage() {
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Événements à venir</h1>
+        <h1 className="titraille text-lg text-[var(--scalian-violet)] dark:text-[var(--scalian-lavande)]">
+          Événements à venir
+        </h1>
         <Button render={<Link href="/events/new">Créer un événement</Link>} />
       </div>
 

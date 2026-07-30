@@ -16,10 +16,10 @@ export function Header({ displayName }: { displayName: string }) {
   const pathname = usePathname();
 
   return (
-    <header className="border-b">
-      <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3">
-        <Link href="/events" className="font-semibold">
-          ScalActivity
+    <header className="bg-[var(--scalian-violet)] text-white">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+        <Link href="/events" className="titraille text-sm tracking-[0.22em]">
+          Scal<span className="text-[var(--scalian-lavande)]">activity</span>
         </Link>
         <nav className="flex gap-1">
           {links.map((l) => (
@@ -27,8 +27,8 @@ export function Header({ displayName }: { displayName: string }) {
               key={l.href}
               href={l.href}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm hover:bg-accent",
-                pathname === l.href && "bg-accent font-medium",
+                "rounded-md px-3 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white",
+                pathname === l.href && "bg-white/15 font-medium text-white",
               )}
             >
               {l.label}
@@ -36,14 +36,21 @@ export function Header({ displayName }: { displayName: string }) {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">{displayName}</span>
+          <span className="text-sm text-white/70">{displayName}</span>
           <form action={signOut}>
-            <Button variant="ghost" size="sm" type="submit">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="submit"
+              className="text-white/80 hover:bg-white/10 hover:text-white"
+            >
               Déconnexion
             </Button>
           </form>
         </div>
       </div>
+      {/* Filet fin de l'univers formel Scalian */}
+      <div className="filet-scalian h-px" aria-hidden />
     </header>
   );
 }
