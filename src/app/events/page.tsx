@@ -14,8 +14,8 @@ function EventCard({ event }: { event: EventSummary }) {
 
   return (
     <Link href={`/events/${event.id}`} className="block">
-      <Card className="transition-colors hover:bg-accent/50">
-        <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4">
+      <Card className="shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-[var(--violet-clair)] hover:shadow-md">
+        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 py-5">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span
@@ -42,7 +42,7 @@ function EventCard({ event }: { event: EventSummary }) {
                   ? `Complet · ${event.registered_count - event.capacity} en attente`
                   : `${event.spots_left} place${event.spots_left > 1 ? "s" : ""} restante${event.spots_left > 1 ? "s" : ""}`}
             </p>
-            <p className="text-muted-foreground">
+            <p className="font-medium text-[var(--violet)] dark:text-[var(--violet-clair)]">
               {formatCents(event.price_per_person_cents)} / pers.
             </p>
           </div>
@@ -56,11 +56,9 @@ export default function EventsPage() {
   const { data: events, isPending, error } = useUpcomingEvents();
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="titraille text-lg text-[var(--scalian-violet)] dark:text-[var(--scalian-lavande)]">
-          Événements à venir
-        </h1>
+    <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="titre-page">Événements à venir</h1>
         <Button render={<Link href="/events/new">Créer un événement</Link>} />
       </div>
 

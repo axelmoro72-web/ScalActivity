@@ -21,10 +21,10 @@ export default function InvitePage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-lg p-4">
-      <Card>
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6">
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Inviter un collègue</CardTitle>
+          <CardTitle className="titre-page">Inviter un collègue</CardTitle>
           <CardDescription>
             Il ou elle recevra un email avec un lien pour créer son compte.
           </CardDescription>

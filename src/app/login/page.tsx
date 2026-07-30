@@ -83,11 +83,10 @@ function LoginForm() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm overflow-hidden pt-0">
-        <div className="filet-scalian h-1" aria-hidden />
-        <CardHeader className="pt-6">
-          <CardTitle className="titraille text-[var(--scalian-violet)] dark:text-[var(--scalian-lavande)]">
-            Scalactivity
+      <Card className="w-full max-w-sm shadow-sm">
+        <CardHeader className="space-y-2">
+          <CardTitle className="titraille text-base text-[var(--violet-fonce)] dark:text-[var(--violet-clair)]">
+            Scalactivity<span className="text-[var(--violet)]">.</span>
           </CardTitle>
           <CardDescription>
             Connexion — l&apos;inscription se fait sur invitation d&apos;un

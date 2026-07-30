@@ -49,90 +49,95 @@
 }
 
 /*
- * Palette issue de la charte graphique Scalian :
- *   violet principal  #4B2882 (Pantone 2617C)
- *   violet profond    #2A164A
- *   lavande           #CDBBDC
- *   gris              #AEADBB
- *   texte             #000000
- * Le violet est majoritaire, les autres couleurs l'accompagnent,
- * aplats 100 % et dégradés par transparence uniquement.
+ * Palette Scalian (charte graphique, p.18) — définie ici et nulle part
+ * ailleurs : tout le reste du site consomme ces variables.
+ *
+ *   --violet        #4B2882  accent uniquement (CTA, lien actif, détails)
+ *   --violet-fonce  #2A164A  titres importants, éléments ponctuels
+ *   --violet-clair  #CDBBDC  fonds secondaires légers, survols, badges
+ *   --gris          #AEADBB  bordures et séparateurs (pas de texte : 2,4:1)
+ *   --gris-texte    dérivé assombri du gris, pour les textes secondaires
+ *                   accessibles (≥ 4,5:1 sur blanc)
+ *
+ * Le blanc domine ; le violet guide l'œil, il ne colore jamais de grandes
+ * surfaces. Les teintes intermédiaires sont dérivées par color-mix.
  */
 :root {
-  --scalian-violet: #4b2882;
-  --scalian-violet-profond: #2a164a;
-  --scalian-lavande: #cdbbdc;
-  --scalian-gris: #aeadbb;
+  --violet: #4b2882;
+  --violet-fonce: #2a164a;
+  --violet-clair: #cdbbdc;
+  --gris: #aeadbb;
+  --gris-texte: #605d6c;
+  --encre: #1f1b28;
 
-  --font-sans: "Aptos", "Segoe UI", var(--font-geist-sans), system-ui,
-    sans-serif;
+  --font-sans: "Aptos", var(--font-geist-sans), system-ui, sans-serif;
 
-  --background: #faf9fc;
-  --foreground: #17111f;
+  --background: #ffffff;
+  --foreground: var(--encre);
   --card: #ffffff;
-  --card-foreground: #17111f;
+  --card-foreground: var(--encre);
   --popover: #ffffff;
-  --popover-foreground: #17111f;
-  --primary: var(--scalian-violet);
+  --popover-foreground: var(--encre);
+  --primary: var(--violet);
   --primary-foreground: #ffffff;
-  --secondary: #ede8f4;
-  --secondary-foreground: var(--scalian-violet-profond);
-  --muted: #f1eef6;
-  --muted-foreground: #6b6779;
-  --accent: #ede8f4;
-  --accent-foreground: var(--scalian-violet-profond);
+  --secondary: color-mix(in srgb, var(--violet-clair) 28%, white);
+  --secondary-foreground: var(--violet-fonce);
+  --muted: color-mix(in srgb, var(--gris) 12%, white);
+  --muted-foreground: var(--gris-texte);
+  --accent: color-mix(in srgb, var(--violet-clair) 22%, white);
+  --accent-foreground: var(--violet-fonce);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #e3dded;
-  --input: #e3dded;
-  --ring: var(--scalian-violet);
-  --chart-1: var(--scalian-violet);
-  --chart-2: var(--scalian-lavande);
-  --chart-3: var(--scalian-violet-profond);
-  --chart-4: var(--scalian-gris);
-  --chart-5: #17111f;
-  --radius: 0.625rem;
+  --border: color-mix(in srgb, var(--gris) 42%, white);
+  --input: color-mix(in srgb, var(--gris) 42%, white);
+  --ring: var(--violet);
+  --chart-1: var(--violet);
+  --chart-2: var(--violet-clair);
+  --chart-3: var(--violet-fonce);
+  --chart-4: var(--gris);
+  --chart-5: var(--encre);
+  --radius: 0.75rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #17111f;
-  --sidebar-primary: var(--scalian-violet);
+  --sidebar-foreground: var(--encre);
+  --sidebar-primary: var(--violet);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ede8f4;
-  --sidebar-accent-foreground: var(--scalian-violet-profond);
-  --sidebar-border: #e3dded;
-  --sidebar-ring: var(--scalian-violet);
+  --sidebar-accent: color-mix(in srgb, var(--violet-clair) 22%, white);
+  --sidebar-accent-foreground: var(--violet-fonce);
+  --sidebar-border: color-mix(in srgb, var(--gris) 42%, white);
+  --sidebar-ring: var(--violet);
 }
 
 .dark {
-  --background: #171021;
-  --foreground: #f2eff7;
-  --card: #211737;
-  --card-foreground: #f2eff7;
-  --popover: #211737;
-  --popover-foreground: #f2eff7;
-  --primary: var(--scalian-lavande);
-  --primary-foreground: var(--scalian-violet-profond);
-  --secondary: #2a164a;
-  --secondary-foreground: #f2eff7;
-  --muted: #291d40;
-  --muted-foreground: var(--scalian-gris);
-  --accent: #2a164a;
-  --accent-foreground: #f2eff7;
+  --background: color-mix(in srgb, var(--violet-fonce) 26%, black);
+  --foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
+  --card: color-mix(in srgb, var(--violet-fonce) 42%, black);
+  --card-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
+  --popover: color-mix(in srgb, var(--violet-fonce) 42%, black);
+  --popover-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
+  --primary: var(--violet-clair);
+  --primary-foreground: var(--violet-fonce);
+  --secondary: color-mix(in srgb, var(--violet-fonce) 70%, black);
+  --secondary-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
+  --muted: color-mix(in srgb, var(--violet-fonce) 55%, black);
+  --muted-foreground: var(--gris);
+  --accent: color-mix(in srgb, var(--violet-fonce) 70%, black);
+  --accent-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: var(--scalian-lavande);
-  --chart-1: var(--scalian-lavande);
-  --chart-2: var(--scalian-violet);
-  --chart-3: var(--scalian-gris);
-  --chart-4: #f2eff7;
-  --chart-5: #2a164a;
-  --sidebar: #211737;
-  --sidebar-foreground: #f2eff7;
-  --sidebar-primary: var(--scalian-lavande);
-  --sidebar-primary-foreground: var(--scalian-violet-profond);
-  --sidebar-accent: #2a164a;
-  --sidebar-accent-foreground: #f2eff7;
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: var(--scalian-lavande);
+  --border: color-mix(in srgb, var(--gris) 22%, transparent);
+  --input: color-mix(in srgb, var(--gris) 28%, transparent);
+  --ring: var(--violet-clair);
+  --chart-1: var(--violet-clair);
+  --chart-2: var(--violet);
+  --chart-3: var(--gris);
+  --chart-4: #ffffff;
+  --chart-5: var(--violet-fonce);
+  --sidebar: color-mix(in srgb, var(--violet-fonce) 42%, black);
+  --sidebar-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
+  --sidebar-primary: var(--violet-clair);
+  --sidebar-primary-foreground: var(--violet-fonce);
+  --sidebar-accent: color-mix(in srgb, var(--violet-fonce) 70%, black);
+  --sidebar-accent-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
+  --sidebar-border: color-mix(in srgb, var(--gris) 22%, transparent);
+  --sidebar-ring: var(--violet-clair);
 }
 
 @layer base {
@@ -148,22 +153,22 @@
 }
 
 @layer utilities {
-  /* Titraille en écho à la Sackers Gothic Std (capitales uniquement) —
-     police sous licence, non embarquée : on en reprend l'esprit. */
+  /* Réservé au mot-marque (écho à la Sackers Gothic Std du logotype,
+     capitales uniquement — police sous licence, non embarquée). */
   .titraille {
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-weight: 600;
+    letter-spacing: 0.18em;
+    font-weight: 650;
   }
 
-  /* Filet fin en dégradé violet → lavande (univers formel : filets fins,
-     dégradés par transparence autorisés). */
-  .filet-scalian {
-    background-image: linear-gradient(
-      90deg,
-      var(--scalian-violet),
-      var(--scalian-lavande) 60%,
-      transparent
-    );
+  /* Titre de page : hiérarchie nette, violet foncé ponctuel. */
+  .titre-page {
+    font-size: 1.375rem;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--violet-fonce);
+  }
+  .dark .titre-page {
+    color: var(--violet-clair);
   }
 }

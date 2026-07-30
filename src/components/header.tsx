@@ -16,10 +16,13 @@ export function Header({ displayName }: { displayName: string }) {
   const pathname = usePathname();
 
   return (
-    <header className="bg-[var(--scalian-violet)] text-white">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-        <Link href="/events" className="titraille text-sm tracking-[0.22em]">
-          Scal<span className="text-[var(--scalian-lavande)]">activity</span>
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3 sm:px-6">
+        <Link
+          href="/events"
+          className="titraille text-sm text-[var(--violet-fonce)] transition-colors hover:text-[var(--violet)] dark:text-[var(--violet-clair)]"
+        >
+          Scalactivity<span className="text-[var(--violet)]">.</span>
         </Link>
         <nav className="flex gap-1">
           {links.map((l) => (
@@ -27,30 +30,25 @@ export function Header({ displayName }: { displayName: string }) {
               key={l.href}
               href={l.href}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white",
-                pathname === l.href && "bg-white/15 font-medium text-white",
+                "rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                pathname === l.href && "font-medium text-[var(--violet)]",
               )}
             >
               {l.label}
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-white/70">{displayName}</span>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="hidden text-sm text-muted-foreground sm:inline">
+            {displayName}
+          </span>
           <form action={signOut}>
-            <Button
-              variant="ghost"
-              size="sm"
-              type="submit"
-              className="text-white/80 hover:bg-white/10 hover:text-white"
-            >
+            <Button variant="ghost" size="sm" type="submit">
               Déconnexion
             </Button>
           </form>
         </div>
       </div>
-      {/* Filet fin de l'univers formel Scalian */}
-      <div className="filet-scalian h-px" aria-hidden />
     </header>
   );
 }

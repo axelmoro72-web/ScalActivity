@@ -39,8 +39,8 @@ function ParticipantRow({
   isMe: boolean;
 }) {
   return (
-    <li className="flex items-center gap-2 py-1.5">
-      <span className="w-6 text-right text-sm text-muted-foreground">
+    <li className="flex items-center gap-3 border-b py-2 last:border-b-0">
+      <span className="w-6 text-right text-sm font-medium tabular-nums text-[var(--violet)] dark:text-[var(--violet-clair)]">
         {participant.position}.
       </span>
       <span className={isMe ? "font-medium" : ""}>
@@ -114,11 +114,17 @@ export default function EventDetailPage({
     cancelMutation.isPending;
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-4 p-4">
-      <Card>
+    <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <Card className="shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className={cancelled ? "line-through" : ""}>
+            <CardTitle
+              className={
+                cancelled
+                  ? "titre-page line-through opacity-60"
+                  : "titre-page"
+              }
+            >
               {event.title}
             </CardTitle>
             <Badge variant="secondary">{event.sport}</Badge>
@@ -148,8 +154,10 @@ export default function EventDetailPage({
             </p>
             <p>
               <span className="text-muted-foreground">Prix :</span>{" "}
-              {formatCents(event.price_per_person_cents)} / personne (coût
-              total {formatCents(event.total_cost_cents)})
+              <span className="font-medium text-[var(--violet)] dark:text-[var(--violet-clair)]">
+                {formatCents(event.price_per_person_cents)} / personne
+              </span>{" "}
+              (coût total {formatCents(event.total_cost_cents)})
             </p>
           </div>
 
@@ -227,9 +235,9 @@ export default function EventDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">
+          <CardTitle className="text-base font-semibold text-[var(--violet-fonce)] dark:text-[var(--violet-clair)]">
             Participants confirmés ({confirmed.length}/{event.capacity})
           </CardTitle>
         </CardHeader>

@@ -126,9 +126,9 @@ export default function SetPasswordPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm shadow-sm">
         <CardHeader>
-          <CardTitle>Bienvenue !</CardTitle>
+          <CardTitle className="titre-page">Bienvenue !</CardTitle>
           <CardDescription>
             Choisissez un mot de passe pour finaliser votre compte.
           </CardDescription>

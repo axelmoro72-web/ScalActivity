@@ -21,10 +21,10 @@ export default function NewEventPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-lg p-4">
-      <Card>
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6">
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Créer un événement</CardTitle>
+          <CardTitle className="titre-page">Créer un événement</CardTitle>
           <CardDescription>
             Le coût total est réparti entre les {""}
             participants : prix par personne = coût total ÷ nombre de places.
