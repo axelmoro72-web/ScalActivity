@@ -1,106 +1,119 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createEvent, type ActionState } from "../actions";
-import { Button } from "@/components/ui/button";
+import { euroAmountToCents } from "@/lib/schemas";
+import { formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
+}
 
 export default function NewEventPage() {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createEvent,
     null,
   );
+  const [capacity, setCapacity] = useState("4");
+  const [totalCost, setTotalCost] = useState("0");
+
+  // Aperçu du prix par personne, même arrondi que la vue SQL (ceil).
+  const parsedCost = euroAmountToCents.safeParse(totalCost);
+  const parsedCapacity = parseInt(capacity, 10);
+  const preview =
+    parsedCost.success && parsedCapacity >= 1 && parsedCapacity <= 100
+      ? formatCents(Math.ceil(parsedCost.data / parsedCapacity))
+      : null;
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="titre-page">Créer un événement</CardTitle>
-          <CardDescription>
-            Le coût total est réparti entre les {""}
-            participants : prix par personne = coût total ÷ nombre de places.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={formAction} className="space-y-4">
-            {state && !state.ok && (
-              <Alert variant="destructive">
-                <AlertDescription>{state.message}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="title">Titre</Label>
+    <main className="mx-auto w-full max-w-xl flex-1 px-6 py-7">
+      <div className="overflow-hidden rounded-[20px] border border-[var(--border)] bg-card">
+        <div className="bg-[var(--vert)] px-6 py-5">
+          <h1 className="grotesk text-[22px] font-bold text-[var(--header-texte)]">
+            Nouvel événement
+          </h1>
+          <p className="mt-1 text-[13px] text-[var(--header-nav)]">
+            Le coût total est réparti entre les places.
+          </p>
+        </div>
+        <form action={formAction} className="flex flex-col gap-4 px-6 py-5">
+          {state && !state.ok && (
+            <Alert variant="destructive">
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          )}
+          <Field label="Titre">
+            <Input name="title" placeholder="Padel du jeudi" required />
+          </Field>
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Sport">
+              <Input name="sport" placeholder="Padel" required />
+            </Field>
+            <Field label="Lieu">
+              <Input name="location" placeholder="4Padel Toulouse" />
+            </Field>
+          </div>
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Début">
+              <Input name="startsAt" type="datetime-local" required />
+            </Field>
+            <Field label="Fin (facultatif)">
+              <Input name="endsAt" type="datetime-local" />
+            </Field>
+          </div>
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <Field label="Places">
               <Input
-                id="title"
-                name="title"
-                placeholder="Padel du jeudi"
+                name="capacity"
+                type="number"
+                min={1}
+                max={100}
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
                 required
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sport">Sport</Label>
-                <Input id="sport" name="sport" placeholder="Padel" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Lieu</Label>
-                <Input id="location" name="location" placeholder="4Padel Toulouse" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startsAt">Début</Label>
-                <Input
-                  id="startsAt"
-                  name="startsAt"
-                  type="datetime-local"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endsAt">Fin (facultatif)</Label>
-                <Input id="endsAt" name="endsAt" type="datetime-local" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Nombre de places</Label>
-                <Input
-                  id="capacity"
-                  name="capacity"
-                  type="number"
-                  min={1}
-                  max={100}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="totalCost">Coût total (€)</Label>
-                <Input
-                  id="totalCost"
-                  name="totalCost"
-                  inputMode="decimal"
-                  placeholder="48"
-                  defaultValue="0"
-                  required
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Création…" : "Créer l'événement"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </Field>
+            <Field label="Coût total (€)">
+              <Input
+                name="totalCost"
+                inputMode="decimal"
+                value={totalCost}
+                onChange={(e) => setTotalCost(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-[var(--lime-bord)] bg-[var(--lime-fond)] px-4 py-3">
+            <span className="grotesk text-xs font-semibold tracking-[0.06em] uppercase text-[var(--lime-texte)]">
+              Prix par personne
+            </span>
+            <span className="grotesk text-xl font-bold">
+              {preview ?? "—"}
+            </span>
+          </div>
+          <button
+            type="submit"
+            disabled={pending}
+            className="grotesk h-11 w-full cursor-pointer rounded-full bg-[var(--vert)] text-[15px] font-bold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)] disabled:opacity-60"
+          >
+            {pending ? "Création…" : "Créer l'événement"}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

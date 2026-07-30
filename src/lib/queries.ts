@@ -57,6 +57,42 @@ export function useEvent(eventId: string) {
   });
 }
 
+/** Participants de plusieurs événements d'un coup (avatars de la liste). */
+export function useManyParticipants(eventIds: string[]) {
+  return useQuery({
+    queryKey: ["events", "participants", eventIds],
+    enabled: eventIds.length > 0,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("event_participants")
+        .select("*")
+        .in("event_id", eventIds)
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Profil public d'un membre (organisateur d'un événement). */
+export function useProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["profiles", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 /** Participants actifs avec position et statut calculés par la vue. */
 export function useParticipants(eventId: string) {
   return useQuery({

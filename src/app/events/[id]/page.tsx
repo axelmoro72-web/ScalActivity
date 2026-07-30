@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,16 +10,21 @@ import {
   unregisterFromEvent,
   type ActionState,
 } from "../actions";
-import { useCurrentProfile, useEvent, useParticipants } from "@/lib/queries";
-import { formatCents, formatDate } from "@/lib/format";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  useCurrentProfile,
+  useEvent,
+  useParticipants,
+  useProfile,
+} from "@/lib/queries";
+import {
+  dayOfMonth,
+  formatCents,
+  formatDate,
+  monthShort,
+  registeredOn,
+  timeRange,
+} from "@/lib/format";
+import { AvatarInitials } from "@/components/avatar-initials";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +34,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import type { EventParticipant } from "@/lib/database.types";
+
+function StatCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-card px-4 py-3.5">
+      <div className="grotesk text-[10.5px] font-semibold tracking-[0.08em] uppercase text-[var(--texte-3)]">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function ParticipantRow({
   participant,
@@ -39,15 +62,24 @@ function ParticipantRow({
   isMe: boolean;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b py-2 last:border-b-0">
-      <span className="w-6 text-right text-sm font-medium tabular-nums text-[var(--violet)] dark:text-[var(--violet-clair)]">
-        {participant.position}.
-      </span>
-      <span className={isMe ? "font-medium" : ""}>
+    <div
+      className={`flex items-center gap-3 rounded-[10px] px-2.5 py-2 ${
+        isMe ? "bg-[var(--lime-fond)]" : "hover:bg-background"
+      }`}
+    >
+      <AvatarInitials name={participant.display_name} highlight={isMe} />
+      <span className={`text-sm ${isMe ? "grotesk font-semibold" : ""}`}>
         {participant.display_name}
-        {isMe && " (vous)"}
+        {isMe && (
+          <span className="grotesk ml-1 text-xs font-medium text-[var(--lime-texte)]">
+            (vous)
+          </span>
+        )}
       </span>
-    </li>
+      <span className="ml-auto text-xs text-[var(--texte-3)]">
+        inscrit·e {registeredOn(participant.registered_at)}
+      </span>
+    </div>
   );
 }
 
@@ -61,13 +93,11 @@ export default function EventDetailPage({
   const { data: event, isPending, error } = useEvent(id);
   const { data: participants } = useParticipants(id);
   const { data: me } = useCurrentProfile();
+  const { data: organizer } = useProfile(event?.created_by);
   const [cancelOpen, setCancelOpen] = useState(false);
-  // Figé au premier rendu : suffit pour masquer les actions d'un event passé.
   const [now] = useState(() => Date.now());
 
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["events"] });
-
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["events"] });
   const onSettled = (state: ActionState) => {
     if (state?.ok) toast.success(state.message);
     else toast.error(state?.message ?? "Une erreur est survenue.");
@@ -77,28 +107,30 @@ export default function EventDetailPage({
   const registerMutation = useMutation({
     mutationFn: () => registerToEvent(id),
     onSuccess: onSettled,
-    onError: () => toast.error("Une erreur est survenue."),
   });
   const unregisterMutation = useMutation({
     mutationFn: () => unregisterFromEvent(id),
     onSuccess: onSettled,
-    onError: () => toast.error("Une erreur est survenue."),
   });
   const cancelMutation = useMutation({
     mutationFn: () => cancelEvent(id),
     onSuccess: (state) => {
-      if (state?.ok) toast.success(state.message);
-      else toast.error(state?.message ?? "Une erreur est survenue.");
       setCancelOpen(false);
-      refresh();
+      onSettled(state);
     },
   });
 
   if (isPending) {
-    return <main className="p-4 text-muted-foreground">Chargement…</main>;
+    return (
+      <main className="flex-1 p-6 text-[var(--texte-2)]">Chargement…</main>
+    );
   }
   if (error || !event) {
-    return <main className="p-4 text-destructive">Événement introuvable.</main>;
+    return (
+      <main className="flex-1 p-6 text-destructive">
+        Événement introuvable.
+      </main>
+    );
   }
 
   const cancelled = event.status === "cancelled";
@@ -112,142 +144,119 @@ export default function EventDetailPage({
     registerMutation.isPending ||
     unregisterMutation.isPending ||
     cancelMutation.isPending;
+  const gaugeRatio = Math.min(event.registered_count / event.capacity, 1);
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-8 sm:px-6">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle
-              className={
-                cancelled
-                  ? "titre-page line-through opacity-60"
-                  : "titre-page"
-              }
-            >
-              {event.title}
-            </CardTitle>
-            <Badge variant="secondary">{event.sport}</Badge>
-            {cancelled && <Badge variant="destructive">Annulé</Badge>}
-            {!cancelled && event.spots_left === 0 && (
-              <Badge variant="outline">Complet</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-1 text-sm">
-            <p>
-              <span className="text-muted-foreground">Quand :</span>{" "}
-              {formatDate(event.starts_at)}
-              {event.ends_at ? ` → ${formatDate(event.ends_at)}` : ""}
-            </p>
-            {event.location && (
-              <p>
-                <span className="text-muted-foreground">Où :</span>{" "}
-                {event.location}
-              </p>
-            )}
-            <p>
-              <span className="text-muted-foreground">Places :</span>{" "}
-              {event.registered_count}/{event.capacity} prises
-              {event.spots_left > 0 && ` · ${event.spots_left} restantes`}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Prix :</span>{" "}
-              <span className="font-medium text-[var(--violet)] dark:text-[var(--violet-clair)]">
-                {formatCents(event.price_per_person_cents)} / personne
-              </span>{" "}
-              (coût total {formatCents(event.total_cost_cents)})
-            </p>
-          </div>
-
-          {mine && !cancelled && (
-            <p className="text-sm">
-              {mine.is_confirmed ? (
-                <Badge>Vous êtes confirmé·e</Badge>
-              ) : (
-                <Badge variant="outline">
-                  Liste d&apos;attente — position{" "}
-                  {mine.position - event.capacity}
-                </Badge>
-              )}
-            </p>
-          )}
-
-          {!cancelled && !past && (
-            <div className="flex gap-2">
-              {mine ? (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => unregisterMutation.mutate()}
-                >
-                  Se désinscrire
-                </Button>
-              ) : (
-                <Button
-                  disabled={busy}
-                  onClick={() => registerMutation.mutate()}
-                >
-                  {event.spots_left > 0
-                    ? "S'inscrire"
-                    : "Rejoindre la liste d'attente"}
-                </Button>
-              )}
-              {canCancel && (
-                <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-                  <DialogTrigger
-                    render={
-                      <Button variant="destructive" disabled={busy}>
-                        Annuler l&apos;événement
-                      </Button>
-                    }
-                  />
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Annuler « {event.title} » ?</DialogTitle>
-                      <DialogDescription>
-                        Les {event.registered_count} personne(s) inscrite(s)
-                        seront notifiées sur Teams. Cette action est
-                        définitive.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => setCancelOpen(false)}
-                      >
-                        Retour
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        disabled={cancelMutation.isPending}
-                        onClick={() => cancelMutation.mutate()}
-                      >
-                        Confirmer l&apos;annulation
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+    <div className="flex flex-1 flex-col">
+      {/* Héro vert dans la continuité du header */}
+      <div className="bg-[var(--vert)] px-6 pt-1 pb-6">
+        <div className="mx-auto max-w-3xl">
+          <Link
+            href="/events"
+            className="grotesk text-xs font-medium text-[#8fae94] transition-colors hover:text-[var(--header-texte)]"
+          >
+            ← Retour aux événements
+          </Link>
+          <div className="mt-2 flex flex-wrap items-start gap-4">
+            <div className="w-16 flex-none rounded-[14px] border border-[color-mix(in_srgb,var(--lime)_30%,transparent)] bg-[color-mix(in_srgb,var(--lime)_14%,transparent)] py-2.5 text-center">
+              <div className="grotesk text-2xl leading-none font-bold text-[var(--lime)]">
+                {dayOfMonth(event.starts_at)}
+              </div>
+              <div className="grotesk mt-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase text-[var(--header-nav)]">
+                {monthShort(event.starts_at)}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="min-w-0 flex-1 basis-56">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1
+                  className={`grotesk text-[26px] leading-tight font-bold text-[var(--header-texte)] ${cancelled ? "line-through opacity-70" : ""}`}
+                >
+                  {event.title}
+                </h1>
+                <span className="grotesk rounded-full bg-[var(--lime)] px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.05em] uppercase text-[var(--vert)]">
+                  {event.sport}
+                </span>
+                {cancelled && (
+                  <span className="grotesk rounded-full bg-[var(--rouge-pale)] px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.05em] uppercase text-[var(--rouge)]">
+                    Annulé
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-sm text-[var(--header-nav)]">
+                {formatDate(event.starts_at)}
+                {event.ends_at
+                  ? ` (${timeRange(event.starts_at, event.ends_at)})`
+                  : ""}
+                {event.location ? ` · ${event.location}` : ""}
+              </p>
+            </div>
+            {!cancelled && !past && mine && (
+              <span className="grotesk flex h-[42px] flex-none items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--lime)_40%,transparent)] bg-[color-mix(in_srgb,var(--lime)_14%,transparent)] px-5 text-[13px] font-bold text-[var(--lime)]">
+                {mine.is_confirmed
+                  ? "✓ Vous êtes confirmé·e"
+                  : `Liste d'attente — position ${mine.position - event.capacity}`}
+              </span>
+            )}
+            {!cancelled && !past && !mine && (
+              <button
+                disabled={busy}
+                onClick={() => registerMutation.mutate()}
+                className="grotesk h-[42px] flex-none cursor-pointer rounded-full bg-[var(--lime)] px-6 text-sm font-bold text-[var(--vert)] transition-colors hover:bg-[var(--lime-hover)] disabled:opacity-60"
+              >
+                {event.spots_left > 0 ? "S'inscrire" : "Rejoindre la liste d'attente"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold text-[var(--violet-fonce)] dark:text-[var(--violet-clair)]">
-            Participants confirmés ({confirmed.length}/{event.capacity})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-5">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StatCard label="Places">
+            <div className="grotesk mt-0.5 text-xl font-bold">
+              {Math.min(event.registered_count, event.capacity)} /{" "}
+              {event.capacity}
+            </div>
+            <div className="mt-2 h-[5px] w-full rounded-full bg-[var(--jauge)]">
+              <div
+                style={{ width: `${gaugeRatio * 100}%` }}
+                className={`h-[5px] rounded-full ${gaugeRatio >= 1 ? "bg-[var(--vert)]" : "bg-[var(--lime)]"}`}
+              />
+            </div>
+          </StatCard>
+          <StatCard label="Prix / personne">
+            <div className="grotesk mt-0.5 text-xl font-bold">
+              {formatCents(event.price_per_person_cents)}
+            </div>
+            <div className="mt-2 text-xs text-[var(--texte-2)]">
+              coût total {formatCents(event.total_cost_cents)}
+            </div>
+          </StatCard>
+          <StatCard label="Organisé par">
+            <div className="mt-1.5 flex items-center gap-2">
+              <AvatarInitials name={organizer?.display_name ?? "?"} size={26} />
+              <span className="grotesk text-sm font-semibold">
+                {organizer?.display_name ?? "…"}
+              </span>
+            </div>
+          </StatCard>
+        </div>
+
+        <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="grotesk text-[15px] font-semibold">
+              Participants confirmés
+            </span>
+            <span className="grotesk rounded-full bg-[var(--lime-pale)] px-2.5 py-0.5 text-[13px] font-bold text-[var(--lime-texte)]">
+              {confirmed.length} / {event.capacity}
+            </span>
+          </div>
           {confirmed.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--texte-2)]">
               Personne pour l&apos;instant.
             </p>
           ) : (
-            <ul>
+            <div className="flex flex-col gap-0.5">
               {confirmed.map((p) => (
                 <ParticipantRow
                   key={p.id}
@@ -255,28 +264,102 @@ export default function EventDetailPage({
                   isMe={p.user_id === me?.id}
                 />
               ))}
-            </ul>
+            </div>
           )}
 
           {waitlist.length > 0 && (
             <>
-              <Separator className="my-3" />
-              <p className="mb-1 text-sm font-medium">
-                Liste d&apos;attente ({waitlist.length})
-              </p>
-              <ul>
+              <div className="my-3.5 h-px bg-[var(--border)]" />
+              <div className="mb-2 flex items-center justify-between">
+                <span className="grotesk text-[13px] font-semibold text-[var(--texte-2)]">
+                  Liste d&apos;attente
+                </span>
+                <span className="grotesk text-xs font-semibold text-[var(--texte-3)]">
+                  {waitlist.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
                 {waitlist.map((p) => (
-                  <ParticipantRow
+                  <div
                     key={p.id}
-                    participant={p}
-                    isMe={p.user_id === me?.id}
-                  />
+                    className="flex items-center gap-3 rounded-[10px] px-2.5 py-2 opacity-80"
+                  >
+                    <AvatarInitials
+                      name={p.display_name}
+                      highlight={p.user_id === me?.id}
+                    />
+                    <span className="text-sm text-[var(--texte-2)]">
+                      {p.display_name}
+                      {p.user_id === me?.id && (
+                        <span className="grotesk ml-1 text-xs font-medium text-[var(--lime-texte)]">
+                          (vous)
+                        </span>
+                      )}
+                    </span>
+                    <span className="grotesk ml-auto rounded-full border border-[var(--input)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--texte-2)]">
+                      position {p.position - event.capacity}
+                    </span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </>
           )}
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+
+        {!cancelled && !past && (mine || canCancel) && (
+          <div className="mt-3.5 flex flex-wrap gap-2.5">
+            {mine && (
+              <button
+                disabled={busy}
+                onClick={() => unregisterMutation.mutate()}
+                className="grotesk h-9 cursor-pointer rounded-full border-[1.5px] border-[var(--vert)] px-4 text-[13px] font-semibold text-[var(--vert)] transition-colors hover:bg-[var(--accent)] disabled:opacity-60"
+              >
+                Se désinscrire
+              </button>
+            )}
+            {canCancel && (
+              <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                <DialogTrigger
+                  render={
+                    <button
+                      disabled={busy}
+                      className="grotesk h-9 cursor-pointer rounded-full bg-[var(--rouge-pale)] px-4 text-[13px] font-semibold text-[var(--rouge)] transition-colors hover:bg-[var(--rouge-pale-hover)] disabled:opacity-60"
+                    >
+                      Annuler l&apos;événement
+                    </button>
+                  }
+                />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="grotesk">
+                      Annuler « {event.title} » ?
+                    </DialogTitle>
+                    <DialogDescription>
+                      Les {event.registered_count} personne(s) inscrite(s)
+                      seront notifiées sur Teams. Cette action est définitive.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCancelOpen(false)}
+                    >
+                      Retour
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => cancelMutation.mutate()}
+                    >
+                      Confirmer l&apos;annulation
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

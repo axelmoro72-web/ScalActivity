@@ -4,16 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { setPasswordSchema } from "@/lib/schemas";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type SessionState = "loading" | "ready" | "invalid" | "expired";
@@ -125,17 +117,19 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm shadow-sm">
-        <CardHeader>
-          <CardTitle className="titre-page">Bienvenue !</CardTitle>
-          <CardDescription>
+    <main className="flex flex-1 items-center justify-center bg-[var(--vert)] p-6">
+      <div className="flex w-full max-w-sm flex-col gap-4.5">
+        <div className="text-center">
+          <div className="marque text-2xl text-[var(--header-texte)]">
+            Bienvenue !
+          </div>
+          <p className="mt-1.5 text-[13px] text-[var(--header-nav)]">
             Choisissez un mot de passe pour finaliser votre compte.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="rounded-[20px] bg-card p-6">
           {sessionState === "loading" && (
-            <p className="text-sm text-muted-foreground">Vérification…</p>
+            <p className="text-sm text-[var(--texte-2)]">Vérification…</p>
           )}
           {sessionState === "invalid" && (
             <Alert variant="destructive">
@@ -155,19 +149,20 @@ export default function SetPasswordPage() {
               <AlertDescription>
                 Ce lien a déjà été utilisé — probablement ouvert
                 automatiquement par le filtre anti-phishing de votre
-                messagerie. Demandez une nouvelle invitation et ouvrez le
-                lien depuis un autre client mail, ou contactez un admin.
+                messagerie. Depuis la page de connexion, utilisez « Mot de
+                passe oublié ou lien d&apos;invitation expiré ? » pour
+                recevoir un nouveau lien.
               </AlertDescription>
             </Alert>
           )}
           {sessionState === "ready" && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="displayName">Nom affiché (facultatif)</Label>
                 <Input
                   id="displayName"
@@ -175,7 +170,7 @@ export default function SetPasswordPage() {
                   placeholder="Axel M."
                 />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="password">Mot de passe</Label>
                 <Input
                   id="password"
@@ -185,7 +180,7 @@ export default function SetPasswordPage() {
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="confirm">Confirmation</Label>
                 <Input
                   id="confirm"
@@ -195,13 +190,17 @@ export default function SetPasswordPage() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="grotesk h-11 w-full cursor-pointer rounded-full bg-[var(--lime)] text-[15px] font-bold text-[var(--vert)] transition-colors hover:bg-[var(--lime-hover)] disabled:opacity-60"
+              >
                 {loading ? "Enregistrement…" : "Enregistrer"}
-              </Button>
+              </button>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </main>
   );
 }

@@ -4,16 +4,8 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema } from "@/lib/schemas";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 function LoginForm() {
@@ -82,19 +74,19 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm shadow-sm">
-        <CardHeader className="space-y-2">
-          <CardTitle className="titraille text-base text-[var(--violet-fonce)] dark:text-[var(--violet-clair)]">
-            Scalactivity<span className="text-[var(--violet)]">.</span>
-          </CardTitle>
-          <CardDescription>
-            Connexion — l&apos;inscription se fait sur invitation d&apos;un
-            collègue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <main className="flex flex-1 items-center justify-center bg-[var(--vert)] p-6">
+      <div className="flex w-full max-w-sm flex-col gap-4.5">
+        <div className="text-center">
+          <div className="marque text-2xl text-[var(--header-texte)]">
+            SCAL<span className="text-[var(--lime)]">ACTIVITY</span>
+          </div>
+          <p className="mt-1.5 text-[13px] text-[var(--header-nav)]">
+            Le sport entre collègues. L&apos;inscription se fait sur
+            invitation.
+          </p>
+        </div>
+        <div className="rounded-[20px] bg-card p-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -108,7 +100,7 @@ function LoginForm() {
                 </AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -118,7 +110,7 @@ function LoginForm() {
                 required
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Mot de passe</Label>
               <Input
                 id="password"
@@ -128,19 +120,23 @@ function LoginForm() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <button
+              type="submit"
+              disabled={loading}
+              className="grotesk h-11 w-full cursor-pointer rounded-full bg-[var(--lime)] text-[15px] font-bold text-[var(--vert)] transition-colors hover:bg-[var(--lime-hover)] disabled:opacity-60"
+            >
               {loading ? "Connexion…" : "Se connecter"}
-            </Button>
+            </button>
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+              className="w-full cursor-pointer text-center text-[13px] text-[var(--texte-2)] underline-offset-4 hover:underline"
             >
               Mot de passe oublié ou lien d&apos;invitation expiré ?
             </button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </main>
   );
 }

@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-grotesk);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,95 +49,71 @@
 }
 
 /*
- * Palette Scalian (charte graphique, p.18) — définie ici et nulle part
- * ailleurs : tout le reste du site consomme ces variables.
+ * Design « Terrain » (maquette validée, projet Claude Design ScalActivity).
+ * Palette fixe, thème unique clair :
  *
- *   --violet        #4B2882  accent uniquement (CTA, lien actif, détails)
- *   --violet-fonce  #2A164A  titres importants, éléments ponctuels
- *   --violet-clair  #CDBBDC  fonds secondaires légers, survols, badges
- *   --gris          #AEADBB  bordures et séparateurs (pas de texte : 2,4:1)
- *   --gris-texte    dérivé assombri du gris, pour les textes secondaires
- *                   accessibles (≥ 4,5:1 sur blanc)
+ *   --vert        #173d2b  couleur de marque (header, héros, CTA sombres)
+ *   --lime        #b6e34a  accent d'action (CTA, actif, jauges)
+ *   fond de page  #f4f6f1  crème verdâtre ; cartes blanches, bord #e0e7dc
+ *   textes        #173d2b / #5d7264 (secondaire) / #8a9b8e (tertiaire)
  *
- * Le blanc domine ; le violet guide l'œil, il ne colore jamais de grandes
- * surfaces. Les teintes intermédiaires sont dérivées par color-mix.
+ * Titres, labels et boutons en Space Grotesk (--font-grotesk),
+ * corps de texte en Geist. Boutons et pastilles en pilule (999px).
  */
 :root {
-  --violet: #4b2882;
-  --violet-fonce: #2a164a;
-  --violet-clair: #cdbbdc;
-  --gris: #aeadbb;
-  --gris-texte: #605d6c;
-  --encre: #1f1b28;
+  --vert: #173d2b;
+  --vert-hover: #0f2b1e;
+  --lime: #b6e34a;
+  --lime-hover: #c8ef62;
+  --lime-pale: #e4f3c8;
+  --lime-fond: #f6fbe9;
+  --lime-bord: #d9edb2;
+  --lime-texte: #3c5716;
+  --texte-2: #5d7264;
+  --texte-3: #8a9b8e;
+  --avatar: #dce8d4;
+  --jauge: #e0e7dc;
+  --rouge: #a13a3a;
+  --rouge-pale: #f6e0e0;
+  --rouge-pale-hover: #f0cccc;
+  --header-texte: #f2f8ec;
+  --header-nav: #c9dcc4;
+  --fond-input: #fbfcfa;
 
-  --font-sans: "Aptos", var(--font-geist-sans), system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), "Geist", system-ui, sans-serif;
 
-  --background: #ffffff;
-  --foreground: var(--encre);
+  --background: #f4f6f1;
+  --foreground: var(--vert);
   --card: #ffffff;
-  --card-foreground: var(--encre);
+  --card-foreground: var(--vert);
   --popover: #ffffff;
-  --popover-foreground: var(--encre);
-  --primary: var(--violet);
-  --primary-foreground: #ffffff;
-  --secondary: color-mix(in srgb, var(--violet-clair) 28%, white);
-  --secondary-foreground: var(--violet-fonce);
-  --muted: color-mix(in srgb, var(--gris) 12%, white);
-  --muted-foreground: var(--gris-texte);
-  --accent: color-mix(in srgb, var(--violet-clair) 22%, white);
-  --accent-foreground: var(--violet-fonce);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: color-mix(in srgb, var(--gris) 42%, white);
-  --input: color-mix(in srgb, var(--gris) 42%, white);
-  --ring: var(--violet);
-  --chart-1: var(--violet);
-  --chart-2: var(--violet-clair);
-  --chart-3: var(--violet-fonce);
-  --chart-4: var(--gris);
-  --chart-5: var(--encre);
-  --radius: 0.75rem;
+  --popover-foreground: var(--vert);
+  --primary: var(--vert);
+  --primary-foreground: var(--header-texte);
+  --secondary: var(--lime-pale);
+  --secondary-foreground: var(--lime-texte);
+  --muted: #e9efe5;
+  --muted-foreground: var(--texte-2);
+  --accent: #e9efe5;
+  --accent-foreground: var(--vert);
+  --destructive: var(--rouge);
+  --border: #e0e7dc;
+  --input: #dce4d8;
+  --ring: var(--lime);
+  --chart-1: var(--vert);
+  --chart-2: var(--lime);
+  --chart-3: var(--texte-2);
+  --chart-4: var(--jauge);
+  --chart-5: var(--lime-texte);
+  --radius: 0.875rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: var(--encre);
-  --sidebar-primary: var(--violet);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: color-mix(in srgb, var(--violet-clair) 22%, white);
-  --sidebar-accent-foreground: var(--violet-fonce);
-  --sidebar-border: color-mix(in srgb, var(--gris) 42%, white);
-  --sidebar-ring: var(--violet);
-}
-
-.dark {
-  --background: color-mix(in srgb, var(--violet-fonce) 26%, black);
-  --foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
-  --card: color-mix(in srgb, var(--violet-fonce) 42%, black);
-  --card-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
-  --popover: color-mix(in srgb, var(--violet-fonce) 42%, black);
-  --popover-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
-  --primary: var(--violet-clair);
-  --primary-foreground: var(--violet-fonce);
-  --secondary: color-mix(in srgb, var(--violet-fonce) 70%, black);
-  --secondary-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
-  --muted: color-mix(in srgb, var(--violet-fonce) 55%, black);
-  --muted-foreground: var(--gris);
-  --accent: color-mix(in srgb, var(--violet-fonce) 70%, black);
-  --accent-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: color-mix(in srgb, var(--gris) 22%, transparent);
-  --input: color-mix(in srgb, var(--gris) 28%, transparent);
-  --ring: var(--violet-clair);
-  --chart-1: var(--violet-clair);
-  --chart-2: var(--violet);
-  --chart-3: var(--gris);
-  --chart-4: #ffffff;
-  --chart-5: var(--violet-fonce);
-  --sidebar: color-mix(in srgb, var(--violet-fonce) 42%, black);
-  --sidebar-foreground: color-mix(in srgb, var(--violet-clair) 30%, white);
-  --sidebar-primary: var(--violet-clair);
-  --sidebar-primary-foreground: var(--violet-fonce);
-  --sidebar-accent: color-mix(in srgb, var(--violet-fonce) 70%, black);
-  --sidebar-accent-foreground: color-mix(in srgb, var(--violet-clair) 40%, white);
-  --sidebar-border: color-mix(in srgb, var(--gris) 22%, transparent);
-  --sidebar-ring: var(--violet-clair);
+  --sidebar-foreground: var(--vert);
+  --sidebar-primary: var(--vert);
+  --sidebar-primary-foreground: var(--header-texte);
+  --sidebar-accent: #e9efe5;
+  --sidebar-accent-foreground: var(--vert);
+  --sidebar-border: #e0e7dc;
+  --sidebar-ring: var(--lime);
 }
 
 @layer base {
@@ -150,25 +126,35 @@
   html {
     @apply font-sans;
   }
+
+  /* Boutons en pilule et inputs adoucis, partout, sans toucher aux
+     composants shadcn. */
+  [data-slot="button"] {
+    border-radius: 999px;
+    font-family: var(--font-grotesk), sans-serif;
+    font-weight: 600;
+  }
+  [data-slot="label"] {
+    font-family: var(--font-grotesk), sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--vert);
+  }
 }
 
 @layer utilities {
-  /* Réservé au mot-marque (écho à la Sackers Gothic Std du logotype,
-     capitales uniquement — police sous licence, non embarquée). */
-  .titraille {
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    font-weight: 650;
+  /* Titres, chiffres et éléments de marque : Space Grotesk. */
+  .grotesk {
+    font-family: var(--font-grotesk), sans-serif;
+    letter-spacing: -0.02em;
   }
 
-  /* Titre de page : hiérarchie nette, violet foncé ponctuel. */
-  .titre-page {
-    font-size: 1.375rem;
-    line-height: 1.3;
-    font-weight: 600;
-    color: var(--violet-fonce);
-  }
-  .dark .titre-page {
-    color: var(--violet-clair);
+  /* Mot-marque du header et des pages d'auth. */
+  .marque {
+    font-family: var(--font-grotesk), sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
