@@ -69,9 +69,4 @@ export const createEventSchema = z
 export type CreateEventInput = z.input<typeof createEventSchema>;
 export type CreateEventParsed = z.output<typeof createEventSchema>;
 
-/** Formatage d'un montant en centimes pour l'affichage (ex : 1250 → "12,50 €"). */
-export function formatCents(cents: number): string {
-  const euros = Math.floor(cents / 100);
-  const rest = Math.abs(cents % 100).toString().padStart(2, "0");
-  return `${euros},${rest} €`;
-}
+export const eventIdSchema = z.uuid("Identifiant d'événement invalide");
