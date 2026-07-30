@@ -25,6 +25,32 @@ function LoginForm() {
       : null,
   );
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  // Porte de secours : mot de passe oublié, ou lien d'invitation consommé
+  // par le scanner anti-phishing de la messagerie (impossible de ré-inviter
+  // un compte existant). Le lien de réinitialisation aboutit sur la même
+  // page de définition du mot de passe que l'invitation.
+  async function handleForgotPassword() {
+    setError(null);
+    const emailInput =
+      document.querySelector<HTMLInputElement>("#email")?.value ?? "";
+    const parsed = loginSchema.shape.email.safeParse(emailInput);
+    if (!parsed.success) {
+      setError("Renseignez votre email ci-dessous, puis recliquez.");
+      return;
+    }
+    const supabase = createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      parsed.data,
+      { redirectTo: `${window.location.origin}/auth/set-password` },
+    );
+    if (resetError) {
+      setError("Envoi impossible pour le moment. Réessayez dans une minute.");
+      return;
+    }
+    setResetSent(true);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,6 +101,14 @@ function LoginForm() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            {resetSent && (
+              <Alert>
+                <AlertDescription>
+                  Email de réinitialisation envoyé. Suivez son lien pour
+                  définir un nouveau mot de passe.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -98,6 +132,13 @@ function LoginForm() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Connexion…" : "Se connecter"}
             </Button>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Mot de passe oublié ou lien d&apos;invitation expiré ?
+            </button>
           </form>
         </CardContent>
       </Card>
