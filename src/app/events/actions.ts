@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createEventSchema, eventIdSchema } from "@/lib/schemas";
+import {
+  createEventSchema,
+  eventIdSchema,
+  updateEventSchema,
+} from "@/lib/schemas";
 import { formatDate } from "@/lib/format";
 import { sendTeamsNotification } from "@/lib/teams";
 
@@ -52,6 +56,83 @@ export async function createEvent(
   }
 
   redirect(`/events/${data.id}`);
+}
+
+/**
+ * Modification d'un événement par son créateur ou un admin (RPC
+ * update_event). Augmenter la capacité promeut des personnes depuis la
+ * liste d'attente : la fonction SQL les détecte dans la même transaction,
+ * on les notifie ici — comme à la désinscription.
+ */
+export async function updateEvent(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsedId = eventIdSchema.safeParse(formData.get("eventId"));
+  if (!parsedId.success) {
+    return { ok: false, message: "Événement invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  const parsed = updateEventSchema.safeParse({
+    title: formData.get("title"),
+    sport: formData.get("sport"),
+    location: formData.get("location") ?? "",
+    startsAt: formData.get("startsAt"),
+    endsAt: formData.get("endsAt") ?? "",
+    capacity: formData.get("capacity"),
+    totalCost: formData.get("totalCost"),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0].message };
+  }
+
+  const { data: promoted, error } = await supabase.rpc("update_event", {
+    p_event_id: parsedId.data,
+    p_title: parsed.data.title,
+    p_sport: parsed.data.sport,
+    p_location: parsed.data.location,
+    p_starts_at: parsed.data.startsAt.toISOString(),
+    p_ends_at: parsed.data.endsAt?.toISOString() ?? null,
+    p_capacity: parsed.data.capacity,
+    p_total_cost_cents: parsed.data.totalCost,
+  });
+
+  if (error) {
+    if (error.message.includes("capacity_below_confirmed")) {
+      return {
+        ok: false,
+        message:
+          "Le nombre de places ne peut pas être inférieur au nombre de personnes déjà confirmées.",
+      };
+    }
+    if (error.message.includes("event_not_open")) {
+      return { ok: false, message: "Cet événement est annulé." };
+    }
+    if (error.message.includes("not_allowed")) {
+      return {
+        ok: false,
+        message: "Seul le créateur ou un admin peut modifier cet événement.",
+      };
+    }
+    console.error("update_event :", error);
+    return { ok: false, message: "La modification a échoué. Réessayez." };
+  }
+
+  if (promoted && promoted.length > 0) {
+    for (const p of promoted) {
+      await sendTeamsNotification("Une place s'est libérée 🎉", [
+        `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${parsed.data.title} » (${formatDate(parsed.data.startsAt.toISOString())}) : le nombre de places a été augmenté.`,
+      ]);
+    }
+  }
+
+  redirect(`/events/${parsedId.data}`);
 }
 
 export async function registerToEvent(eventId: string): Promise<ActionState> {

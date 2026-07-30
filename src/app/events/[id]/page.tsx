@@ -138,7 +138,7 @@ export default function EventDetailPage({
   const confirmed = (participants ?? []).filter((p) => p.is_confirmed);
   const waitlist = (participants ?? []).filter((p) => !p.is_confirmed);
   const mine = participants?.find((p) => p.user_id === me?.id);
-  const canCancel =
+  const canManage =
     !cancelled && (me?.id === event.created_by || me?.role === "admin");
   const busy =
     registerMutation.isPending ||
@@ -306,9 +306,9 @@ export default function EventDetailPage({
           )}
         </div>
 
-        {!cancelled && !past && (mine || canCancel) && (
+        {!cancelled && (mine || canManage) && (
           <div className="mt-3.5 flex flex-wrap gap-2.5">
-            {mine && (
+            {mine && !past && (
               <button
                 disabled={busy}
                 onClick={() => unregisterMutation.mutate()}
@@ -317,7 +317,15 @@ export default function EventDetailPage({
                 Se désinscrire
               </button>
             )}
-            {canCancel && (
+            {canManage && (
+              <Link
+                href={`/events/${event.id}/edit`}
+                className="grotesk flex h-9 items-center rounded-full border-[1.5px] border-[var(--vert)] px-4 text-[13px] font-semibold text-[var(--vert)] transition-colors hover:bg-[var(--accent)]"
+              >
+                Modifier
+              </Link>
+            )}
+            {canManage && !past && (
               <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
                 <DialogTrigger
                   render={

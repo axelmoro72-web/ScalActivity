@@ -210,6 +210,72 @@ describe("file d'attente", () => {
     expect(error!.code).toBe("23505"); // violation d'unicité
   });
 
+  it("promeut la liste d'attente quand la capacité augmente", async () => {
+    const [u1, u2, u3] = testUsers;
+
+    // État courant : u2 et u3 confirmés (capacité 2), u1 en attente.
+    const { data: promoted, error } = await u1.client.rpc("update_event", {
+      p_event_id: eventId,
+      p_title: "Test file d'attente",
+      p_sport: "padel",
+      p_location: null,
+      p_starts_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      p_ends_at: null,
+      p_capacity: 3,
+      p_total_cost_cents: 4800,
+    });
+
+    // u1 a créé l'event : la RLS l'autorise à le modifier.
+    expect(error).toBeNull();
+    expect(promoted).toEqual([
+      { user_id: u1.user.id, display_name: "Testeur 1" },
+    ]);
+
+    const list = await participants();
+    expect(list.map((p) => p.user_id)).toEqual([
+      u2.user.id,
+      u3.user.id,
+      u1.user.id,
+    ]);
+    expect(list.every((p) => p.is_confirmed)).toBe(true);
+  });
+
+  it("refuse de réduire la capacité sous le nombre de confirmés", async () => {
+    const u1 = testUsers[0];
+
+    const { error } = await u1.client.rpc("update_event", {
+      p_event_id: eventId,
+      p_title: "Test file d'attente",
+      p_sport: "padel",
+      p_location: null,
+      p_starts_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      p_ends_at: null,
+      p_capacity: 2, // 3 personnes sont confirmées
+      p_total_cost_cents: 4800,
+    });
+
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain("capacity_below_confirmed");
+  });
+
+  it("refuse la modification par quelqu'un d'autre que le créateur", async () => {
+    const intruder = testUsers[1]; // u2 n'est pas créateur, pas admin
+
+    const { error } = await intruder.client.rpc("update_event", {
+      p_event_id: eventId,
+      p_title: "Titre pirate",
+      p_sport: "padel",
+      p_location: null,
+      p_starts_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      p_ends_at: null,
+      p_capacity: 3,
+      p_total_cost_cents: 4800,
+    });
+
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain("not_allowed");
+  });
+
   it("refuse la désinscription sans inscription active", async () => {
     const u4 = testUsers[3]; // déjà désinscrit
     const { error } = await u4.client.rpc("cancel_registration", {

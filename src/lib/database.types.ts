@@ -107,6 +107,19 @@ export type Database = {
         Args: { p_event_id: string };
         Returns: PromotedUser[];
       };
+      update_event: {
+        Args: {
+          p_event_id: string;
+          p_title: string;
+          p_sport: string;
+          p_location: string | null;
+          p_starts_at: string;
+          p_ends_at: string | null;
+          p_capacity: number;
+          p_total_cost_cents: number;
+        };
+        Returns: PromotedUser[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

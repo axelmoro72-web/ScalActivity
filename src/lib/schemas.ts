@@ -37,36 +37,50 @@ export const euroAmountToCents = z
     return parseInt(euros, 10) * 100 + parseInt(decimals.padEnd(2, "0") || "0", 10);
   });
 
-export const createEventSchema = z
-  .object({
-    title: z.string().trim().min(1, "Titre requis").max(200),
-    sport: z.string().trim().min(1, "Sport requis").max(100),
-    location: z
-      .string()
-      .trim()
-      .max(200)
-      .transform((v) => (v === "" ? null : v)),
-    startsAt: z.coerce
-      .date({ error: "Date de début invalide" })
-      .refine((d) => d.getTime() > Date.now(), {
-        message: "L'événement doit être dans le futur",
-      }),
-    endsAt: z
-      .union([z.literal(""), z.coerce.date({ error: "Date de fin invalide" })])
-      .transform((v) => (v === "" ? null : v)),
-    capacity: z.coerce
-      .number({ error: "Nombre de places invalide" })
-      .int("Nombre de places entier requis")
-      .min(1, "Au moins une place")
-      .max(100, "100 places maximum"),
-    totalCost: euroAmountToCents,
+const eventFieldsSchema = z.object({
+  title: z.string().trim().min(1, "Titre requis").max(200),
+  sport: z.string().trim().min(1, "Sport requis").max(100),
+  location: z
+    .string()
+    .trim()
+    .max(200)
+    .transform((v) => (v === "" ? null : v)),
+  startsAt: z.coerce.date({ error: "Date de début invalide" }),
+  endsAt: z
+    .union([z.literal(""), z.coerce.date({ error: "Date de fin invalide" })])
+    .transform((v) => (v === "" ? null : v)),
+  capacity: z.coerce
+    .number({ error: "Nombre de places invalide" })
+    .int("Nombre de places entier requis")
+    .min(1, "Au moins une place")
+    .max(100, "100 places maximum"),
+  totalCost: euroAmountToCents,
+});
+
+const endsAfterStarts = (v: { startsAt: Date; endsAt: Date | null }) =>
+  v.endsAt === null || v.endsAt > v.startsAt;
+
+const endsAfterStartsError = {
+  message: "La fin doit être après le début",
+  path: ["endsAt"],
+};
+
+export const createEventSchema = eventFieldsSchema
+  .refine((v) => v.startsAt.getTime() > Date.now(), {
+    message: "L'événement doit être dans le futur",
+    path: ["startsAt"],
   })
-  .refine((v) => v.endsAt === null || v.endsAt > v.startsAt, {
-    message: "La fin doit être après le début",
-    path: ["endsAt"],
-  });
+  .refine(endsAfterStarts, endsAfterStartsError);
 
 export type CreateEventInput = z.input<typeof createEventSchema>;
 export type CreateEventParsed = z.output<typeof createEventSchema>;
+
+// Modification : mêmes règles que la création, sauf la date de début qui
+// peut rester dans le passé (on corrige une coquille sur un événement déjà
+// commencé sans être forcé de le redater).
+export const updateEventSchema = eventFieldsSchema.refine(
+  endsAfterStarts,
+  endsAfterStartsError,
+);
 
 export const eventIdSchema = z.uuid("Identifiant d'événement invalide");
