@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type SessionState = "loading" | "ready" | "invalid";
+type SessionState = "loading" | "ready" | "invalid" | "expired";
 
 // Première connexion après invitation : choix du mot de passe
 // (et du nom affiché, facultatif).
@@ -38,6 +38,14 @@ export default function SetPasswordPage() {
       const hash = new URLSearchParams(window.location.hash.slice(1));
       const access_token = hash.get("access_token");
       const refresh_token = hash.get("refresh_token");
+
+      // Lien déjà consommé (souvent : scanner anti-phishing de la
+      // messagerie qui « clique » avant l'utilisateur).
+      if (hash.get("error_code") === "otp_expired") {
+        window.history.replaceState(null, "", window.location.pathname);
+        setSessionState("expired");
+        return;
+      }
 
       if (access_token && refresh_token) {
         const { error: sessionError } = await supabase.auth.setSession({
@@ -124,6 +132,16 @@ export default function SetPasswordPage() {
               <AlertDescription>
                 Lien d&apos;invitation invalide ou expiré. Demandez une
                 nouvelle invitation.
+              </AlertDescription>
+            </Alert>
+          )}
+          {sessionState === "expired" && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Ce lien a déjà été utilisé — probablement ouvert
+                automatiquement par le filtre anti-phishing de votre
+                messagerie. Demandez une nouvelle invitation et ouvrez le
+                lien depuis un autre client mail, ou contactez un admin.
               </AlertDescription>
             </Alert>
           )}
