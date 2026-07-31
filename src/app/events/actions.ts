@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createEventSchema,
   eventIdSchema,
+  messageBodySchema,
+  messageIdSchema,
   updateEventSchema,
 } from "@/lib/schemas";
 import { formatDate } from "@/lib/format";
@@ -25,6 +27,7 @@ export async function createEvent(
   const parsed = createEventSchema.safeParse({
     title: formData.get("title"),
     sport: formData.get("sport"),
+    description: formData.get("description") ?? "",
     location: formData.get("location") ?? "",
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt") ?? "",
@@ -40,6 +43,7 @@ export async function createEvent(
     .insert({
       title: parsed.data.title,
       sport: parsed.data.sport,
+      description: parsed.data.description,
       location: parsed.data.location,
       starts_at: parsed.data.startsAt.toISOString(),
       ends_at: parsed.data.endsAt?.toISOString() ?? null,
@@ -82,6 +86,7 @@ export async function updateEvent(
   const parsed = updateEventSchema.safeParse({
     title: formData.get("title"),
     sport: formData.get("sport"),
+    description: formData.get("description") ?? "",
     location: formData.get("location") ?? "",
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt") ?? "",
@@ -96,6 +101,7 @@ export async function updateEvent(
     p_event_id: parsedId.data,
     p_title: parsed.data.title,
     p_sport: parsed.data.sport,
+    p_description: parsed.data.description,
     p_location: parsed.data.location,
     p_starts_at: parsed.data.startsAt.toISOString(),
     p_ends_at: parsed.data.endsAt?.toISOString() ?? null,
@@ -302,4 +308,73 @@ export async function deleteEvent(eventId: string): Promise<ActionState> {
   }
 
   return { ok: true, message: "Événement supprimé." };
+}
+
+/**
+ * Publication d'un message dans le fil d'un événement. created_at n'est
+ * pas transmis : la colonne n'est pas insérable (grant par colonne) et
+ * c'est la base qui l'horodate.
+ */
+export async function postMessage(
+  eventId: string,
+  body: string,
+): Promise<ActionState> {
+  const parsedId = eventIdSchema.safeParse(eventId);
+  if (!parsedId.success) {
+    return { ok: false, message: "Événement invalide." };
+  }
+  const parsedBody = messageBodySchema.safeParse(body);
+  if (!parsedBody.success) {
+    return { ok: false, message: parsedBody.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  const { error } = await supabase.from("event_messages").insert({
+    event_id: parsedId.data,
+    user_id: user.id,
+    body: parsedBody.data,
+  });
+
+  if (error) {
+    console.error("postMessage :", error);
+    return { ok: false, message: "L'envoi a échoué. Réessayez." };
+  }
+  return { ok: true, message: "Message envoyé." };
+}
+
+/** Suppression d'un message par son auteur ou un admin (règle appliquée par la RLS). */
+export async function deleteMessage(messageId: number): Promise<ActionState> {
+  const parsedId = messageIdSchema.safeParse(messageId);
+  if (!parsedId.success) {
+    return { ok: false, message: "Message invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  const { data, error } = await supabase
+    .from("event_messages")
+    .delete()
+    .eq("id", parsedId.data)
+    .select("id");
+
+  if (error) {
+    console.error("deleteMessage :", error);
+    return { ok: false, message: "La suppression a échoué. Réessayez." };
+  }
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      message: "Seul l'auteur du message ou un admin peut le supprimer.",
+    };
+  }
+  return { ok: true, message: "Message supprimé." };
 }

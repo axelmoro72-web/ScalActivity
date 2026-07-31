@@ -82,6 +82,23 @@ export function registeredOn(iso: string): string {
   return shortDateFormatter.format(new Date(iso));
 }
 
+// Clé de jour parisienne ("2026-07-31") pour comparer deux instants.
+const dayKeyFormatter = new Intl.DateTimeFormat("fr-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: PARIS,
+});
+
+/** Horodatage d'un message : "14:32" le jour même, "lun. 3 août 14:32" avant. */
+export function messageStamp(iso: string): string {
+  const date = new Date(iso);
+  const time = timeFormatter.format(date);
+  const sameDay =
+    dayKeyFormatter.format(date) === dayKeyFormatter.format(new Date());
+  return sameDay ? time : `${shortDateFormatter.format(date)} ${time}`;
+}
+
 const partsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: PARIS,
   hour12: false,

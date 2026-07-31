@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   cancelEvent,
   deleteEvent,
+  deleteMessage,
+  postMessage,
   registerToEvent,
   unregisterFromEvent,
   type ActionState,
@@ -15,6 +17,7 @@ import {
 import {
   useCurrentProfile,
   useEvent,
+  useMessages,
   useParticipants,
   useProfile,
 } from "@/lib/queries";
@@ -22,6 +25,7 @@ import {
   dayOfMonth,
   formatCents,
   formatDate,
+  messageStamp,
   monthShort,
   registeredOn,
   timeRange,
@@ -37,7 +41,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { EventParticipant } from "@/lib/database.types";
+import { Textarea } from "@/components/ui/textarea";
+import type { EventParticipant, Profile } from "@/lib/database.types";
 
 function StatCard({
   label,
@@ -81,6 +86,148 @@ function ParticipantRow({
       <span className="ml-auto text-xs text-[var(--texte-3)]">
         inscrit·e {registeredOn(participant.registered_at)}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Fil de discussion de l'événement. Ouvert à tout membre authentifié,
+ * même non inscrit : on peut vouloir poser une question avant de
+ * s'engager. Un message se supprime (par son auteur ou un admin) mais
+ * ne se modifie pas.
+ */
+function Chat({
+  eventId,
+  me,
+}: {
+  eventId: string;
+  me: Profile | null | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const { data: messages, isPending } = useMessages(eventId);
+  const [body, setBody] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const count = messages?.length ?? 0;
+
+  // On suit le bas du fil à l'arrivée d'un message.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "nearest" });
+  }, [count]);
+
+  const refreshThread = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["events", eventId, "messages"],
+    });
+
+  const postMutation = useMutation({
+    mutationFn: (text: string) => postMessage(eventId, text),
+    onSuccess: (state) => {
+      if (state?.ok) setBody("");
+      else toast.error(state?.message ?? "Une erreur est survenue.");
+      refreshThread();
+    },
+  });
+  const removeMutation = useMutation({
+    mutationFn: (messageId: number) => deleteMessage(messageId),
+    onSuccess: (state) => {
+      if (!state?.ok) toast.error(state?.message ?? "Une erreur est survenue.");
+      refreshThread();
+    },
+  });
+
+  const send = () => {
+    const text = body.trim();
+    if (text.length === 0 || postMutation.isPending) return;
+    postMutation.mutate(text);
+  };
+
+  return (
+    <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="grotesk text-[15px] font-semibold">Discussion</span>
+        {count > 0 && (
+          <span className="grotesk rounded-full bg-[var(--lime-pale)] px-2.5 py-0.5 text-[13px] font-bold text-[var(--lime-texte)]">
+            {count}
+          </span>
+        )}
+      </div>
+
+      {isPending ? (
+        <p className="text-sm text-[var(--texte-2)]">Chargement…</p>
+      ) : count === 0 ? (
+        <p className="text-sm text-[var(--texte-2)]">
+          Aucun message. Lancez la discussion !
+        </p>
+      ) : (
+        <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
+          {messages?.map((m) => {
+            const isMe = m.user_id === me?.id;
+            const canRemove = isMe || me?.role === "admin";
+            return (
+              <div key={m.id} className="group flex gap-3">
+                <AvatarInitials name={m.display_name} highlight={isMe} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className={`grotesk text-sm ${isMe ? "font-semibold" : "font-medium"}`}
+                    >
+                      {m.display_name}
+                    </span>
+                    <span className="text-xs text-[var(--texte-3)]">
+                      {messageStamp(m.created_at)}
+                    </span>
+                    {canRemove && (
+                      <button
+                        disabled={removeMutation.isPending}
+                        onClick={() => removeMutation.mutate(m.id)}
+                        aria-label="Supprimer le message"
+                        className="ml-auto cursor-pointer text-xs text-[var(--texte-3)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--rouge)] focus-visible:opacity-100 disabled:opacity-40"
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm break-words whitespace-pre-wrap">
+                    {m.body}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        className="mt-3.5 flex items-end gap-2.5 border-t border-[var(--border)] pt-3.5"
+      >
+        <Textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            // Entrée envoie, Maj+Entrée passe à la ligne.
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          rows={1}
+          maxLength={2000}
+          placeholder="Écrire un message…"
+          className="min-h-10 flex-1 rounded-xl"
+        />
+        <button
+          type="submit"
+          disabled={body.trim().length === 0 || postMutation.isPending}
+          className="grotesk h-10 flex-none cursor-pointer rounded-full bg-[var(--vert)] px-5 text-[13px] font-bold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)] disabled:opacity-50"
+        >
+          {postMutation.isPending ? "Envoi…" : "Envoyer"}
+        </button>
+      </form>
     </div>
   );
 }
@@ -257,6 +404,17 @@ export default function EventDetailPage({
           </StatCard>
         </div>
 
+        {event.description && (
+          <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
+            <div className="grotesk mb-2 text-[10.5px] font-semibold tracking-[0.08em] uppercase text-[var(--texte-3)]">
+              Description
+            </div>
+            <p className="text-sm break-words whitespace-pre-wrap text-[var(--texte-2)]">
+              {event.description}
+            </p>
+          </div>
+        )}
+
         <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
           <div className="mb-3 flex items-center justify-between">
             <span className="grotesk text-[15px] font-semibold">
@@ -426,6 +584,8 @@ export default function EventDetailPage({
             </Dialog>
           </div>
         )}
+
+        <Chat eventId={id} me={me} />
       </main>
     </div>
   );

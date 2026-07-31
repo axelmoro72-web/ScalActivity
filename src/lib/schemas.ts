@@ -57,6 +57,11 @@ function parisDateTime(label: string) {
 const eventFieldsSchema = z.object({
   title: z.string().trim().min(1, "Titre requis").max(200),
   sport: z.string().trim().min(1, "Sport requis").max(100),
+  description: z
+    .string()
+    .trim()
+    .max(2000, "Description trop longue (2000 caractères maximum)")
+    .transform((v) => (v === "" ? null : v)),
   location: z
     .string()
     .trim()
@@ -102,3 +107,16 @@ export const updateEventSchema = eventFieldsSchema.refine(
 );
 
 export const eventIdSchema = z.uuid("Identifiant d'événement invalide");
+
+// Fil de discussion. La limite de 2000 caractères double la contrainte
+// CHECK de la table : le message d'erreur est plus clair ici.
+export const messageBodySchema = z
+  .string()
+  .trim()
+  .min(1, "Message vide")
+  .max(2000, "Message trop long (2000 caractères maximum)");
+
+export const messageIdSchema = z.coerce
+  .number({ error: "Message invalide" })
+  .int("Message invalide")
+  .positive("Message invalide");

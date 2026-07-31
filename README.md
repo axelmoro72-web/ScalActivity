@@ -16,11 +16,17 @@ Next.js (App Router) + TypeScript · Supabase (Postgres, Auth, RLS) via
   comparé à `capacity`. Une désinscription promeut automatiquement le suivant.
 - **Le prix par personne n'est jamais stocké** : `total_cost_cents / capacity`,
   calculé par la vue `event_summary`. Montants entiers en centimes.
-- **Aucune suppression physique**, à une exception près : annulation =
+- **Aucune suppression physique**, à deux exceptions près : annulation =
   `status = 'cancelled'`, désinscription = `cancelled_at` renseigné. Seul un
   événement **déjà annulé** peut être supprimé définitivement (par son
   créateur ou un admin), pour le retirer de la liste ; ses inscriptions
-  partent en cascade.
+  partent en cascade. Un message du fil de discussion se supprime aussi
+  physiquement (par son auteur ou un admin) mais ne se modifie jamais.
+- **Les vues énumèrent leurs colonnes**, jamais `select e.*` : Postgres fige
+  la liste des colonnes à la création, une colonne ajoutée plus tard à la
+  table n'apparaît pas dans la vue et le typage écrit à la main ne le voit
+  pas. C'est exactement ce qui est arrivé à `description` (migration
+  `20260731150000`).
 - **RLS partout**, colonnes sensibles verrouillées par des grants par colonne
   (`registered_at`, `role`…).
 

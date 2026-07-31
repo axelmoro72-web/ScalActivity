@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
 /** Utilisateur courant + son profil (rôle admin, nom affiché). */
@@ -87,6 +88,61 @@ export function useProfile(userId: string | undefined) {
         .select("*")
         .eq("id", userId!)
         .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/**
+ * Fil de discussion d'un événement.
+ *
+ * Deux mécanismes de fraîcheur volontairement superposés : l'abonnement
+ * Realtime fait apparaître les messages des autres sans action de leur
+ * part, et un refetch périodique sert de filet si le websocket ne
+ * s'établit pas (réseau d'entreprise, onglet réveillé après veille).
+ * L'auteur d'un message, lui, voit le sien immédiatement : la mutation
+ * invalide la requête au retour de l'action serveur.
+ */
+export function useMessages(eventId: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`event-messages-${eventId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "event_messages",
+          filter: `event_id=eq.${eventId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["events", eventId, "messages"],
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [eventId, queryClient]);
+
+  return useQuery({
+    queryKey: ["events", eventId, "messages"],
+    refetchInterval: 15_000,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("event_message_list")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
       if (error) throw error;
       return data;
     },

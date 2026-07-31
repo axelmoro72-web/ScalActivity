@@ -6,6 +6,7 @@ import { euroAmountToCents } from "@/lib/schemas";
 import { formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 function Field({
@@ -67,6 +68,14 @@ export default function NewEventPage() {
               <Input name="location" placeholder="4Padel Toulouse" />
             </Field>
           </div>
+          <Field label="Description (facultatif)">
+            <Textarea
+              name="description"
+              rows={3}
+              maxLength={2000}
+              placeholder="Matériel à prévoir, niveau, point de rendez-vous…"
+            />
+          </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Début">
               <Input name="startsAt" type="datetime-local" required />

@@ -20,6 +20,7 @@ export type Event = {
   id: string;
   title: string;
   sport: string;
+  description: string | null;
   location: string | null;
   starts_at: string;
   ends_at: string | null;
@@ -44,6 +45,16 @@ export type EventSummary = Event & {
   price_per_person_cents: number;
   registered_count: number;
   spots_left: number;
+};
+
+/** Vue event_message_list : message du fil avec le nom de son auteur. */
+export type EventMessage = {
+  id: number;
+  event_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  display_name: string;
 };
 
 /** Vue event_participants : inscriptions actives avec position et statut calculés. */
@@ -79,6 +90,7 @@ export type Database = {
         Insert: {
           title: string;
           sport: string;
+          description?: string | null;
           location?: string | null;
           starts_at: string;
           ends_at?: string | null;
@@ -97,10 +109,20 @@ export type Database = {
         Update: { cancelled_at?: string | null };
         Relationships: [];
       };
+      event_messages: {
+        Row: Omit<EventMessage, "display_name">;
+        // created_at n'est pas insérable (grant par colonne) : sinon un
+        // message antidaté remonterait en tête du fil.
+        Insert: { event_id: string; user_id: string; body: string };
+        // Un message ne se modifie pas, il se supprime.
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: {
       event_summary: { Row: EventSummary; Relationships: [] };
       event_participants: { Row: EventParticipant; Relationships: [] };
+      event_message_list: { Row: EventMessage; Relationships: [] };
     };
     Functions: {
       cancel_registration: {
@@ -112,6 +134,7 @@ export type Database = {
           p_event_id: string;
           p_title: string;
           p_sport: string;
+          p_description: string | null;
           p_location: string | null;
           p_starts_at: string;
           p_ends_at: string | null;
