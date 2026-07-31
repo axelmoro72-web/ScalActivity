@@ -16,8 +16,11 @@ Next.js (App Router) + TypeScript · Supabase (Postgres, Auth, RLS) via
   comparé à `capacity`. Une désinscription promeut automatiquement le suivant.
 - **Le prix par personne n'est jamais stocké** : `total_cost_cents / capacity`,
   calculé par la vue `event_summary`. Montants entiers en centimes.
-- **Aucune suppression physique** : annulation = `status = 'cancelled'`,
-  désinscription = `cancelled_at` renseigné.
+- **Aucune suppression physique**, à une exception près : annulation =
+  `status = 'cancelled'`, désinscription = `cancelled_at` renseigné. Seul un
+  événement **déjà annulé** peut être supprimé définitivement (par son
+  créateur ou un admin), pour le retirer de la liste ; ses inscriptions
+  partent en cascade.
 - **RLS partout**, colonnes sensibles verrouillées par des grants par colonne
   (`registered_at`, `role`…).
 

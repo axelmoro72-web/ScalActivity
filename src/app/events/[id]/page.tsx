@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   cancelEvent,
+  deleteEvent,
   registerToEvent,
   unregisterFromEvent,
   type ActionState,
@@ -89,12 +91,14 @@ export default function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data: event, isPending, error } = useEvent(id);
   const { data: participants } = useParticipants(id);
   const { data: me } = useCurrentProfile();
   const { data: organizer } = useProfile(event?.created_by);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [now] = useState(() => Date.now());
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["events"] });
@@ -119,6 +123,16 @@ export default function EventDetailPage({
       onSettled(state);
     },
   });
+  // La page n'a plus rien à afficher une fois l'événement supprimé : on
+  // repart sur la liste.
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteEvent(id),
+    onSuccess: (state) => {
+      setDeleteOpen(false);
+      onSettled(state);
+      if (state?.ok) router.push("/events");
+    },
+  });
 
   if (isPending) {
     return (
@@ -138,12 +152,13 @@ export default function EventDetailPage({
   const confirmed = (participants ?? []).filter((p) => p.is_confirmed);
   const waitlist = (participants ?? []).filter((p) => !p.is_confirmed);
   const mine = participants?.find((p) => p.user_id === me?.id);
-  const canManage =
-    !cancelled && (me?.id === event.created_by || me?.role === "admin");
+  const owner = me?.id === event.created_by || me?.role === "admin";
+  const canManage = !cancelled && owner;
   const busy =
     registerMutation.isPending ||
     unregisterMutation.isPending ||
-    cancelMutation.isPending;
+    cancelMutation.isPending ||
+    deleteMutation.isPending;
   const gaugeRatio = Math.min(event.registered_count / event.capacity, 1);
 
   return (
@@ -365,6 +380,50 @@ export default function EventDetailPage({
                 </DialogContent>
               </Dialog>
             )}
+          </div>
+        )}
+
+        {cancelled && owner && (
+          <div className="mt-3.5">
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger
+                render={
+                  <button
+                    disabled={busy}
+                    className="grotesk h-9 cursor-pointer rounded-full bg-[var(--rouge-pale)] px-4 text-[13px] font-semibold text-[var(--rouge)] transition-colors hover:bg-[var(--rouge-pale-hover)] disabled:opacity-60"
+                  >
+                    Supprimer définitivement
+                  </button>
+                }
+              />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="grotesk">
+                    Supprimer « {event.title} » ?
+                  </DialogTitle>
+                  <DialogDescription>
+                    L&apos;événement et ses {event.registered_count}{" "}
+                    inscription(s) seront effacés définitivement. Cette action
+                    est irréversible.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteOpen(false)}
+                  >
+                    Retour
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate()}
+                  >
+                    Supprimer définitivement
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </main>

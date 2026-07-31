@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { registerToEvent } from "./actions";
+import { deleteEvent, registerToEvent } from "./actions";
 import {
   useCurrentProfile,
   useManyParticipants,
@@ -12,7 +12,21 @@ import {
 } from "@/lib/queries";
 import { dayOfMonth, formatCents, monthShort, timeRange } from "@/lib/format";
 import { AvatarInitials } from "@/components/avatar-initials";
-import type { EventParticipant, EventSummary } from "@/lib/database.types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import type {
+  EventParticipant,
+  EventSummary,
+  Profile,
+} from "@/lib/database.types";
 
 function DateBlock({ event, muted }: { event: EventSummary; muted?: boolean }) {
   return (
@@ -56,15 +70,17 @@ function Gauge({ filled, total }: { filled: number; total: number }) {
 function EventCard({
   event,
   participants,
-  myUserId,
+  me,
 }: {
   event: EventSummary;
   participants: EventParticipant[];
-  myUserId: string | undefined;
+  me: Profile | null | undefined;
 }) {
   const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const cancelled = event.status === "cancelled";
   const full = event.spots_left === 0;
+  const myUserId = me?.id;
   const mine = participants.find((p) => p.user_id === myUserId);
 
   const registerMutation = useMutation({
@@ -75,10 +91,22 @@ function EventCard({
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
   });
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteEvent(event.id),
+    onSuccess: (state) => {
+      setDeleteOpen(false);
+      if (state?.ok) toast.success(state.message);
+      else toast.error(state?.message ?? "Une erreur est survenue.");
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
 
   if (cancelled) {
+    // Un événement annulé n'est supprimable que par son créateur ou un
+    // admin — la RLS applique la même règle côté base.
+    const canDelete = me?.id === event.created_by || me?.role === "admin";
     return (
-      <div className="flex items-center gap-4 rounded-2xl border border-dashed border-[var(--input)] p-4 opacity-75 sm:gap-5 sm:px-5">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-[var(--input)] p-4 opacity-75 sm:gap-5 sm:px-5">
         <DateBlock event={event} muted />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -94,6 +122,43 @@ function EventCard({
             {event.location ? ` · ${event.location}` : ""}
           </p>
         </div>
+        {canDelete && (
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogTrigger
+              render={
+                <button
+                  disabled={deleteMutation.isPending}
+                  className="grotesk ml-auto h-9 flex-none cursor-pointer rounded-full bg-[var(--rouge-pale)] px-4 text-[13px] font-semibold text-[var(--rouge)] transition-colors hover:bg-[var(--rouge-pale-hover)] disabled:opacity-60"
+                >
+                  Supprimer
+                </button>
+              }
+            />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="grotesk">
+                  Supprimer « {event.title} » ?
+                </DialogTitle>
+                <DialogDescription>
+                  L&apos;événement et ses {event.registered_count} inscription(s)
+                  seront effacés définitivement. Cette action est irréversible.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                  Retour
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  Supprimer définitivement
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     );
   }
@@ -222,7 +287,7 @@ export default function EventsPage() {
             participants={(allParticipants ?? []).filter(
               (p) => p.event_id === e.id,
             )}
-            myUserId={me?.id}
+            me={me}
           />
         ))}
       </div>

@@ -261,3 +261,45 @@ export async function cancelEvent(eventId: string): Promise<ActionState> {
 
   return { ok: true, message: "Événement annulé." };
 }
+
+/**
+ * Suppression définitive, réservée aux événements déjà annulés : la RLS
+ * n'autorise le delete que sur status = 'cancelled' et pour le créateur
+ * ou un admin. Les inscriptions partent en cascade. Pas de notification
+ * Teams : elle a déjà été envoyée à l'annulation, et l'événement n'existe
+ * plus pour personne.
+ */
+export async function deleteEvent(eventId: string): Promise<ActionState> {
+  const parsedId = eventIdSchema.safeParse(eventId);
+  if (!parsedId.success) {
+    return { ok: false, message: "Événement invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  // Aucune ligne renvoyée = la policy a filtré : event encore ouvert, ou
+  // appelant ni créateur ni admin.
+  const { data, error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", parsedId.data)
+    .select("id");
+
+  if (error) {
+    console.error("deleteEvent :", error);
+    return { ok: false, message: "La suppression a échoué. Réessayez." };
+  }
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      message:
+        "Suppression impossible : seul un événement annulé peut être supprimé, par son créateur ou un admin.",
+    };
+  }
+
+  return { ok: true, message: "Événement supprimé." };
+}
