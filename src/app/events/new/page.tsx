@@ -63,7 +63,7 @@ export default function NewEventPage() {
             <Input name="title" placeholder="Padel du jeudi" required />
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Sport">
+            <Field label="Activité">
               <SportField />
             </Field>
             <Field label="Lieu">

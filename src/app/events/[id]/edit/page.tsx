@@ -114,7 +114,7 @@ export default function EditEventPage({
             <Input name="title" defaultValue={event.title} required />
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Sport">
+            <Field label="Activité">
               <SportField defaultValue={event.sport} />
             </Field>
             <Field label="Lieu">

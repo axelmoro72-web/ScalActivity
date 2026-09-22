@@ -5,34 +5,17 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 
-export const SPORTS = [
-  "Padel",
-  "Tennis",
-  "Badminton",
-  "Squash",
-  "Ping-pong",
-  "Foot à 5",
-  "Football",
-  "Basket",
-  "Volley",
-  "Running",
-  "Vélo",
-  "Randonnée",
-  "Escalade",
-  "Natation",
-  "Yoga",
-  "Fitness",
-  "Pétanque",
-  "Bowling",
-  "Golf",
-  "Ski",
-];
+export const RACKET_SPORTS = ["Padel", "Tennis", "Badminton", "Squash", "Ping-pong"];
+export const OTHER_ACTIVITIES = ["Afterwork"];
+const SPORTS = [...RACKET_SPORTS, ...OTHER_ACTIVITIES];
 
 const OTHER = "__autre__";
 
@@ -56,18 +39,32 @@ export function SportField({ defaultValue = "" }: { defaultValue?: string }) {
         <SelectTrigger className="h-10 w-full rounded-[12px] border-[1.5px] bg-[var(--fond-input)] px-3.5 text-base md:text-sm">
           <SelectValue>
             {(v: string | null) =>
-              v === OTHER ? "Autre…" : (v ?? "Choisir un sport")
+              v === OTHER ? "Autre…" : (v ?? "Choisir une activité")
             }
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
-          {SPORTS.map((s) => (
-            <SelectItem key={s} value={s}>
-              {s}
-            </SelectItem>
-          ))}
+        <SelectContent alignItemWithTrigger={false}>
+          <SelectGroup>
+            <SelectLabel>Sports de raquette</SelectLabel>
+            {RACKET_SPORTS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectGroup>
           <SelectSeparator />
-          <SelectItem value={OTHER}>Autre…</SelectItem>
+          <SelectGroup>
+            <SelectLabel>Entre collègues</SelectLabel>
+            {OTHER_ACTIVITIES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+          <SelectSeparator />
+          <SelectGroup>
+            <SelectItem value={OTHER}>Autre… (à écrire)</SelectItem>
+          </SelectGroup>
         </SelectContent>
       </Select>
       {choice === OTHER ? (
@@ -75,7 +72,7 @@ export function SportField({ defaultValue = "" }: { defaultValue?: string }) {
           name="sport"
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
-          placeholder="Quel sport ?"
+          placeholder="Foot, running, bowling…"
           maxLength={100}
           required
           autoFocus={!defaultValue}
