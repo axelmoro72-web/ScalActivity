@@ -14,6 +14,25 @@ import { sendTeamsNotification, siteUrl } from "@/lib/teams";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
+/** Résumé d'une activité pour les cartes Teams (création, modification). */
+function eventSummaryLines(e: {
+  sport: string;
+  startsAt: Date;
+  location: string | null;
+  capacity: number;
+  totalCost: number;
+}): string[] {
+  return [
+    `**${e.sport}** · ${formatDate(e.startsAt.toISOString())}${e.location ? ` · ${e.location}` : ""}`,
+    `${e.capacity} place${e.capacity > 1 ? "s" : ""}${e.totalCost > 0 ? ` · coût total ${formatCents(e.totalCost)}` : ""}`,
+  ];
+}
+
+function eventLink(eventId: string, title: string) {
+  const base = siteUrl();
+  return base ? { title, url: `${base}/events/${eventId}` } : undefined;
+}
+
 export async function createEvent(
   _prev: ActionState,
   formData: FormData,
@@ -64,18 +83,14 @@ export async function createEvent(
     .select("display_name")
     .eq("id", user.id)
     .single();
-  const e = parsed.data;
-  const base = siteUrl();
   await sendTeamsNotification(
-    `Nouvelle activité : ${e.title} 🏃`,
+    data.id,
+    `Nouvelle activité : ${parsed.data.title} 🏃`,
     [
-      `**${e.sport}** · ${formatDate(e.startsAt.toISOString())}${e.location ? ` · ${e.location}` : ""}`,
-      `${e.capacity} place${e.capacity > 1 ? "s" : ""}${e.totalCost > 0 ? ` · coût total ${formatCents(e.totalCost)}` : ""}`,
+      ...eventSummaryLines(parsed.data),
       ...(profile ? [`Proposée par ${profile.display_name}.`] : []),
     ],
-    base
-      ? { title: "Voir et s'inscrire", url: `${base}/events/${data.id}` }
-      : undefined,
+    eventLink(data.id, "Voir et s'inscrire"),
   );
 
   redirect(`/events/${data.id}`);
@@ -151,11 +166,26 @@ export async function updateEvent(
 
   if (promoted && promoted.length > 0) {
     for (const p of promoted) {
-      await sendTeamsNotification("Une place s'est libérée 🎉", [
+      await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
         `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${parsed.data.title} » (${formatDate(parsed.data.startsAt.toISOString())}) : le nombre de places a été augmenté.`,
       ]);
     }
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single();
+  await sendTeamsNotification(
+    parsedId.data,
+    `Activité modifiée : ${parsed.data.title} ✏️`,
+    [
+      ...eventSummaryLines(parsed.data),
+      ...(profile ? [`Modifiée par ${profile.display_name}.`] : []),
+    ],
+    eventLink(parsedId.data, "Voir l'activité"),
+  );
 
   redirect(`/events/${parsedId.data}`);
 }
@@ -229,7 +259,7 @@ export async function unregisterFromEvent(
       .single();
 
     for (const p of promoted) {
-      await sendTeamsNotification("Une place s'est libérée 🎉", [
+      await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
         event
           ? `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${event.title} » (${formatDate(event.starts_at)}).`
           : `**${p.display_name}** passe de la liste d'attente à confirmé.`,
@@ -277,7 +307,7 @@ export async function cancelEvent(eventId: string): Promise<ActionState> {
     .order("position");
 
   const names = (participants ?? []).map((p) => p.display_name);
-  await sendTeamsNotification("Événement annulé ❌", [
+  await sendTeamsNotification(parsedId.data, "Événement annulé ❌", [
     `« ${data.title} » prévu le ${formatDate(data.starts_at)} est annulé.`,
     names.length > 0
       ? `Personnes concernées : ${names.join(", ")}.`
@@ -368,13 +398,11 @@ export async function postMessage(
     supabase.from("events").select("title").eq("id", parsedId.data).single(),
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
   ]);
-  const base = siteUrl();
   await sendTeamsNotification(
+    parsedId.data,
     `💬 ${profile?.display_name ?? "Quelqu'un"} sur « ${event?.title ?? "une activité"} »`,
     [parsedBody.data],
-    base
-      ? { title: "Répondre", url: `${base}/events/${parsedId.data}` }
-      : undefined,
+    eventLink(parsedId.data, "Répondre"),
   );
 
   return { ok: true, message: "Message envoyé." };

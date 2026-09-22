@@ -115,11 +115,69 @@ Créer un événement de test, puis l'annuler : la carte « Événement annulé 
 doit tomber dans la conversation. Supprimer ensuite l'événement annulé pour
 ne pas polluer la liste.
 
+## 8. Un fil par activité
+
+Par défaut, le workflow poste chaque carte comme un nouveau message. Pour
+regrouper tout ce qui concerne une activité (création, modifications,
+messages du chat, places libérées, annulation) dans **un seul fil**, le
+workflow doit se souvenir du message racine de chaque activité.
+
+L'application envoie pour cela, à côté de la carte, un champ `eventId`
+(identifiant de l'activité). La correspondance `eventId` → message racine
+est stockée dans une liste SharePoint.
+
+### a. Créer la liste SharePoint
+
+Dans le site SharePoint de l'équipe (onglet **Fichiers** du canal →
+*Ouvrir dans SharePoint*) : *Nouveau* → **Liste** → *Liste vide*, nommée
+`ScalActivity fils`. Ajouter une colonne **Une ligne de texte** nommée
+`MessageId`. La colonne `Titre` existante recevra l'`eventId`.
+
+### b. Modifier le workflow
+
+Éditer le flux (`make.powerautomate.com` → *Mes flux* → le flux →
+*Modifier*). Garder le déclencheur, **supprimer** le bloc
+*Appliquer à chacun* / *Publier une carte* existant, puis ajouter :
+
+1. **SharePoint — Obtenir les éléments** : site et liste ci-dessus,
+   *Requête de filtre* : `Title eq '@{triggerBody()?['eventId']}'`,
+   *Nombre supérieur* : `1`.
+2. **Condition** (mode expression) :
+   `length(body('Obtenir_les_éléments')?['value'])` *est égal à* `0`.
+3. Branche **Oui** (première carte de l'activité → nouveau fil) :
+   - **Teams — Publier une carte dans une conversation ou un canal** :
+     *Publier en tant que* `Flow bot`, *Publier dans* `Channel`, l'équipe,
+     le canal, *Carte adaptative* :
+     `@{triggerBody()?['attachments'][0]['content']}`.
+   - **SharePoint — Créer un élément** : même liste, *Titre* :
+     `@{triggerBody()?['eventId']}`, *MessageId* : le contenu dynamique
+     **ID du message** de l'action précédente.
+4. Branche **Non** (activité déjà connue → réponse dans le fil) :
+   - **Teams — Répondre avec une carte adaptative dans un canal** :
+     *Publier en tant que* `Flow bot`, même équipe et canal, *Message* :
+     `@{first(body('Obtenir_les_éléments')?['value'])?['MessageId']}`,
+     *Carte adaptative* : `@{triggerBody()?['attachments'][0]['content']}`.
+
+Le nom interne des actions (`Obtenir_les_éléments`) dépend de la langue
+de l'éditeur : le plus sûr est d'insérer `body(...)` via le sélecteur de
+contenu dynamique.
+
+Enregistrer. L'URL du webhook ne change pas : rien à refaire côté Vercel.
+
+### Remarques
+
+- Les activités créées **avant** cette mise en place n'ont pas de message
+  racine : leur prochaine notification (un message de chat, par exemple)
+  ouvrira leur fil.
+- Supprimer une ligne de la liste fait repartir l'activité sur un
+  nouveau fil à la notification suivante.
+
 ## Ce qui déclenche une notification
 
 | Déclencheur | Contenu |
 | --- | --- |
 | Création d'une activité | Titre, sport, date, lieu, places, coût, auteur, bouton « Voir et s'inscrire » |
+| Modification d'une activité | Mêmes informations à jour, auteur de la modification, bouton « Voir l'activité » |
 | Message dans le fil d'une activité | Auteur, activité, texte du message, bouton « Répondre » |
 | Annulation d'un événement | Titre, date, et la liste des personnes inscrites |
 | Désinscription libérant une place | La personne promue depuis la liste d'attente |

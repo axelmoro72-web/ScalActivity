@@ -5,10 +5,15 @@ import "server-only";
  * (workflow "Post to a channel when a webhook request is received",
  * format Adaptive Card — les connecteurs O365 MessageCard sont retirés).
  *
+ * `eventId` voyage à côté de la carte : le workflow s'en sert pour poster
+ * la première carte d'une activité comme nouveau fil, puis répondre dans
+ * ce fil pour toutes les suivantes (voir docs/notifications-teams.md).
+ *
  * L'échec d'une notification ne doit jamais faire échouer l'action
  * métier qui la déclenche : on loggue et on continue.
  */
 export async function sendTeamsNotification(
+  eventId: string,
   title: string,
   lines: string[],
   link?: { title: string; url: string },
@@ -21,6 +26,7 @@ export async function sendTeamsNotification(
 
   const card = {
     type: "message",
+    eventId,
     attachments: [
       {
         contentType: "application/vnd.microsoft.card.adaptive",
