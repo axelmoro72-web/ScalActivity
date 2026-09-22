@@ -35,6 +35,7 @@ export async function sendTeamsNotification(
           type: "AdaptiveCard",
           version: "1.4",
           body: [
+            ...brandHeader(),
             {
               type: "TextBlock",
               size: "Medium",
@@ -79,4 +80,52 @@ export function siteUrl(): string | null {
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   return null;
+}
+
+/**
+ * En-tête « ScalActivity » en tête de carte : le bot s'appelle forcément
+ * « Flux de travail » côté Teams, l'en-tête dit d'où vient le message.
+ * Le logo (PNG, Teams n'affiche pas le SVG) exige une URL publique.
+ */
+function brandHeader(): object[] {
+  const base = siteUrl();
+  return [
+    {
+      type: "ColumnSet",
+      columns: [
+        ...(base
+          ? [
+              {
+                type: "Column",
+                width: "auto",
+                verticalContentAlignment: "Center",
+                items: [
+                  {
+                    type: "Image",
+                    url: `${base}/scalactivity-logo.png`,
+                    altText: "ScalActivity",
+                    width: "24px",
+                    height: "24px",
+                  },
+                ],
+              },
+            ]
+          : []),
+        {
+          type: "Column",
+          width: "stretch",
+          verticalContentAlignment: "Center",
+          items: [
+            {
+              type: "TextBlock",
+              text: "ScalActivity",
+              weight: "Bolder",
+              color: "Good",
+              spacing: "None",
+            },
+          ],
+        },
+      ],
+    },
+  ];
 }
