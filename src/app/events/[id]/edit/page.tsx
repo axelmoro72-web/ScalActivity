@@ -7,6 +7,8 @@ import { useCurrentProfile, useEvent, useParticipants } from "@/lib/queries";
 import { euroAmountToCents } from "@/lib/schemas";
 import { dateToParisInput, formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
+import { SportField } from "@/components/sport-field";
+import { DateRangeFields } from "@/components/date-range-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -113,7 +115,7 @@ export default function EditEventPage({
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Sport">
-              <Input name="sport" defaultValue={event.sport} required />
+              <SportField defaultValue={event.sport} />
             </Field>
             <Field label="Lieu">
               <Input name="location" defaultValue={event.location ?? ""} />
@@ -128,23 +130,10 @@ export default function EditEventPage({
               placeholder="Matériel à prévoir, niveau, point de rendez-vous…"
             />
           </Field>
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Début">
-              <Input
-                name="startsAt"
-                type="datetime-local"
-                defaultValue={dateToParisInput(event.starts_at)}
-                required
-              />
-            </Field>
-            <Field label="Fin (facultatif)">
-              <Input
-                name="endsAt"
-                type="datetime-local"
-                defaultValue={dateToParisInput(event.ends_at)}
-              />
-            </Field>
-          </div>
+          <DateRangeFields
+            defaultStart={dateToParisInput(event.starts_at)}
+            defaultEnd={dateToParisInput(event.ends_at)}
+          />
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Places">
               <Input

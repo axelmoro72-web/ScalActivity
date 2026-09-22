@@ -5,6 +5,8 @@ import { createEvent, type ActionState } from "../actions";
 import { euroAmountToCents } from "@/lib/schemas";
 import { formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
+import { SportField } from "@/components/sport-field";
+import { DateRangeFields } from "@/components/date-range-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -62,7 +64,7 @@ export default function NewEventPage() {
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Sport">
-              <Input name="sport" placeholder="Padel" required />
+              <SportField />
             </Field>
             <Field label="Lieu">
               <Input name="location" placeholder="4Padel Toulouse" />
@@ -76,14 +78,7 @@ export default function NewEventPage() {
               placeholder="Matériel à prévoir, niveau, point de rendez-vous…"
             />
           </Field>
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Début">
-              <Input name="startsAt" type="datetime-local" required />
-            </Field>
-            <Field label="Fin (facultatif)">
-              <Input name="endsAt" type="datetime-local" />
-            </Field>
-          </div>
+          <DateRangeFields />
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Places">
               <Input
