@@ -13,8 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const RACKET_SPORTS = ["Padel", "Tennis", "Badminton", "Squash", "Ping-pong"];
-export const OTHER_ACTIVITIES = ["Afterwork"];
+export const RACKET_SPORTS = ["Padel", "Tennis", "Badminton", "Squash"];
+export const OTHER_ACTIVITIES = ["Running", "Afterwork"];
 const SPORTS = [...RACKET_SPORTS, ...OTHER_ACTIVITIES];
 
 const OTHER = "__autre__";
@@ -54,7 +54,7 @@ export function SportField({ defaultValue = "" }: { defaultValue?: string }) {
           </SelectGroup>
           <SelectSeparator />
           <SelectGroup>
-            <SelectLabel>Entre collègues</SelectLabel>
+            <SelectLabel>Autres activités</SelectLabel>
             {OTHER_ACTIVITIES.map((s) => (
               <SelectItem key={s} value={s}>
                 {s}
