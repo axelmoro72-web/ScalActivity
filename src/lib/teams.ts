@@ -91,37 +91,51 @@ function brandHeader(): object[] {
   const base = siteUrl();
   return [
     {
-      type: "ColumnSet",
-      columns: [
-        ...(base
-          ? [
-              {
-                type: "Column",
-                width: "auto",
-                verticalContentAlignment: "Center",
-                items: [
-                  {
-                    type: "Image",
-                    url: `${base}/scalactivity-logo.png`,
-                    altText: "ScalActivity",
-                    width: "24px",
-                    height: "24px",
-                  },
-                ],
-              },
-            ]
-          : []),
+      type: "Container",
+      style: "good",
+      bleed: true,
+      items: [
         {
-          type: "Column",
-          width: "stretch",
-          verticalContentAlignment: "Center",
-          items: [
+          type: "ColumnSet",
+          columns: [
+            ...(base
+              ? [
+                  {
+                    type: "Column",
+                    width: "auto",
+                    verticalContentAlignment: "Center",
+                    items: [
+                      {
+                        type: "Image",
+                        url: `${base}/scalactivity-logo.png`,
+                        altText: "ScalActivity",
+                        width: "32px",
+                        height: "32px",
+                      },
+                    ],
+                  },
+                ]
+              : []),
             {
-              type: "TextBlock",
-              text: "ScalActivity",
-              weight: "Bolder",
-              color: "Good",
-              spacing: "None",
+              type: "Column",
+              width: "stretch",
+              verticalContentAlignment: "Center",
+              items: [
+                {
+                  type: "TextBlock",
+                  text: "ScalActivity",
+                  weight: "Bolder",
+                  size: "Medium",
+                  spacing: "None",
+                },
+                {
+                  type: "TextBlock",
+                  text: "Le sport entre collègues",
+                  isSubtle: true,
+                  size: "Small",
+                  spacing: "None",
+                },
+              ],
             },
           ],
         },
