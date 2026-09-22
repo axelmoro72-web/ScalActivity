@@ -11,6 +11,7 @@ import "server-only";
 export async function sendTeamsNotification(
   title: string,
   lines: string[],
+  link?: { title: string; url: string },
 ): Promise<void> {
   const url = process.env.TEAMS_WEBHOOK_URL;
   if (!url) {
@@ -37,6 +38,11 @@ export async function sendTeamsNotification(
             },
             ...lines.map((text) => ({ type: "TextBlock", text, wrap: true })),
           ],
+          ...(link && {
+            actions: [
+              { type: "Action.OpenUrl", title: link.title, url: link.url },
+            ],
+          }),
         },
       },
     ],
@@ -56,4 +62,15 @@ export async function sendTeamsNotification(
   } catch (err) {
     console.error("Webhook Teams injoignable :", err);
   }
+}
+
+/**
+ * URL publique du site, pour les liens des cartes. NEXT_PUBLIC_SITE_URL
+ * prime ; à défaut, Vercel fournit le domaine de production.
+ */
+export function siteUrl(): string | null {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return null;
 }

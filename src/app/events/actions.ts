@@ -9,8 +9,8 @@ import {
   messageIdSchema,
   updateEventSchema,
 } from "@/lib/schemas";
-import { formatDate } from "@/lib/format";
-import { sendTeamsNotification } from "@/lib/teams";
+import { formatCents, formatDate } from "@/lib/format";
+import { sendTeamsNotification, siteUrl } from "@/lib/teams";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
@@ -58,6 +58,25 @@ export async function createEvent(
     console.error("createEvent :", error);
     return { ok: false, message: "La création a échoué. Réessayez." };
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single();
+  const e = parsed.data;
+  const base = siteUrl();
+  await sendTeamsNotification(
+    `Nouvelle activité : ${e.title} 🏃`,
+    [
+      `**${e.sport}** · ${formatDate(e.startsAt.toISOString())}${e.location ? ` · ${e.location}` : ""}`,
+      `${e.capacity} place${e.capacity > 1 ? "s" : ""}${e.totalCost > 0 ? ` · coût total ${formatCents(e.totalCost)}` : ""}`,
+      ...(profile ? [`Proposée par ${profile.display_name}.`] : []),
+    ],
+    base
+      ? { title: "Voir et s'inscrire", url: `${base}/events/${data.id}` }
+      : undefined,
+  );
 
   redirect(`/events/${data.id}`);
 }
@@ -344,6 +363,20 @@ export async function postMessage(
     console.error("postMessage :", error);
     return { ok: false, message: "L'envoi a échoué. Réessayez." };
   }
+
+  const [{ data: event }, { data: profile }] = await Promise.all([
+    supabase.from("events").select("title").eq("id", parsedId.data).single(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+  ]);
+  const base = siteUrl();
+  await sendTeamsNotification(
+    `💬 ${profile?.display_name ?? "Quelqu'un"} sur « ${event?.title ?? "une activité"} »`,
+    [parsedBody.data],
+    base
+      ? { title: "Répondre", url: `${base}/events/${parsedId.data}` }
+      : undefined,
+  );
+
   return { ok: true, message: "Message envoyé." };
 }
 

@@ -52,6 +52,13 @@ Sur un poste avec Docker : `npx supabase start` pour une base locale.
 Sans Docker (cas actuel) : `npx supabase link --project-ref <ref>` puis
 `npx supabase db push` vers le projet de dev.
 
+## Notifications Teams
+
+Inactives tant que `TEAMS_WEBHOOK_URL` n'est pas déclarée — l'application
+loggue et continue. Mode opératoire complet (création du flux Power
+Automate, choix du compte propriétaire, test, déploiement) :
+[`docs/notifications-teams.md`](docs/notifications-teams.md).
+
 ## Tests
 
 ```bash
