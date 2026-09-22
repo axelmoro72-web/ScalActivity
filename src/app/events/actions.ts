@@ -28,6 +28,25 @@ function eventSummaryLines(e: {
   ];
 }
 
+/** Remplissage pour les cartes d'inscription : "👥 5/8 confirmés · 3 places restantes". */
+function fillLine(s: {
+  capacity: number;
+  registered_count: number;
+  spots_left: number;
+}): string {
+  const confirmed = Math.min(s.registered_count, s.capacity);
+  const waiting = s.registered_count - confirmed;
+  return [
+    `👥 ${confirmed}/${s.capacity} confirmé${confirmed > 1 ? "s" : ""}`,
+    waiting > 0 ? `${waiting} en liste d'attente` : null,
+    s.spots_left > 0
+      ? `${s.spots_left} place${s.spots_left > 1 ? "s" : ""} restante${s.spots_left > 1 ? "s" : ""}`
+      : "complet",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function eventLink(eventId: string, title: string) {
   const base = siteUrl();
   return base ? { title, url: `${base}/events/${eventId}` } : undefined;
@@ -216,6 +235,31 @@ export async function registerToEvent(eventId: string): Promise<ActionState> {
       message: "Inscription impossible (événement fermé ou passé).",
     };
   }
+
+  const [{ data: summary }, { data: me }] = await Promise.all([
+    supabase
+      .from("event_summary")
+      .select("title, capacity, registered_count, spots_left")
+      .eq("id", parsedId.data)
+      .single(),
+    supabase
+      .from("event_participants")
+      .select("display_name, is_confirmed")
+      .eq("event_id", parsedId.data)
+      .eq("user_id", user.id)
+      .single(),
+  ]);
+  if (summary && me) {
+    await sendTeamsNotification(
+      parsedId.data,
+      me.is_confirmed
+        ? `✅ ${me.display_name} s'inscrit à « ${summary.title} »`
+        : `⏳ ${me.display_name} rejoint la liste d'attente de « ${summary.title} »`,
+      [fillLine(summary)],
+      eventLink(parsedId.data, "Voir l'activité"),
+    );
+  }
+
   return { ok: true, message: "Inscription enregistrée." };
 }
 
@@ -251,13 +295,25 @@ export async function unregisterFromEvent(
     return { ok: false, message: "La désinscription a échoué. Réessayez." };
   }
 
-  if (promoted && promoted.length > 0) {
-    const { data: event } = await supabase
-      .from("events")
-      .select("title, starts_at")
+  const [{ data: event }, { data: profile }] = await Promise.all([
+    supabase
+      .from("event_summary")
+      .select("title, starts_at, capacity, registered_count, spots_left")
       .eq("id", parsedId.data)
-      .single();
+      .single(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+  ]);
 
+  if (event && profile) {
+    await sendTeamsNotification(
+      parsedId.data,
+      `🚪 ${profile.display_name} se désinscrit de « ${event.title} »`,
+      [fillLine(event)],
+      eventLink(parsedId.data, "Voir l'activité"),
+    );
+  }
+
+  if (promoted && promoted.length > 0) {
     for (const p of promoted) {
       await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
         event

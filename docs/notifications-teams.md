@@ -178,6 +178,8 @@ Enregistrer. L'URL du webhook ne change pas : rien à refaire côté Vercel.
 | --- | --- |
 | Création d'une activité | Titre, sport, date, lieu, places, coût, auteur, bouton « Voir et s'inscrire » |
 | Modification d'une activité | Mêmes informations à jour, auteur de la modification, bouton « Voir l'activité » |
+| Inscription | Nom, confirmé ou liste d'attente, remplissage (confirmés, attente, places restantes) |
+| Désinscription | Nom et remplissage mis à jour |
 | Message dans le fil d'une activité | Auteur, activité, texte du message, bouton « Répondre » |
 | Annulation d'un événement | Titre, date, et la liste des personnes inscrites |
 | Désinscription libérant une place | La personne promue depuis la liste d'attente |
