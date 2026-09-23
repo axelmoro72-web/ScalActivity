@@ -128,13 +128,6 @@ function brandHeader(): object[] {
                   size: "Medium",
                   spacing: "None",
                 },
-                {
-                  type: "TextBlock",
-                  text: "Le sport entre collègues",
-                  isSubtle: true,
-                  size: "Small",
-                  spacing: "None",
-                },
               ],
             },
           ],
