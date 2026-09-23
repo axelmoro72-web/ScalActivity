@@ -9,6 +9,16 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Mot de passe requis"),
 });
 
+export const signupSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(2, "Nom trop court")
+    .max(60, "Nom trop long (60 caractères maximum)"),
+  email: z.email("Adresse email invalide"),
+  password: z.string().min(8, "Mot de passe : 8 caractères minimum"),
+});
+
 export const inviteSchema = z.object({
   email: z.email("Adresse email invalide"),
 });

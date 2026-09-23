@@ -1,56 +1,35 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { loginSchema } from "@/lib/schemas";
+import { signupSchema } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-function LoginForm() {
+/**
+ * Création de compte, ouverte à tous : le site ne fonctionne plus sur
+ * invitation. La confirmation par email est désactivée côté Supabase
+ * (tier gratuit : quelques envois par heure, et les scanners anti-phishing
+ * consomment les liens), donc signUp ouvre directement la session.
+ *
+ * Le profil est créé par le trigger `handle_new_user`, qui lit
+ * `display_name` dans les métadonnées.
+ */
+export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(
-    searchParams.get("error") === "lien-invalide"
-      ? "Lien d'invitation invalide ou expiré. Demandez une nouvelle invitation."
-      : null,
-  );
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-
-  // Porte de secours : mot de passe oublié, ou lien d'invitation consommé
-  // par le scanner anti-phishing de la messagerie (impossible de ré-inviter
-  // un compte existant). Le lien de réinitialisation aboutit sur la même
-  // page de définition du mot de passe que l'invitation.
-  async function handleForgotPassword() {
-    setError(null);
-    const emailInput =
-      document.querySelector<HTMLInputElement>("#email")?.value ?? "";
-    const parsed = loginSchema.shape.email.safeParse(emailInput);
-    if (!parsed.success) {
-      setError("Renseignez votre email ci-dessous, puis recliquez.");
-      return;
-    }
-    const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      parsed.data,
-      { redirectTo: `${window.location.origin}/auth/set-password` },
-    );
-    if (resetError) {
-      setError("Envoi impossible pour le moment. Réessayez dans une minute.");
-      return;
-    }
-    setResetSent(true);
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
     const form = new FormData(e.currentTarget);
-    const parsed = loginSchema.safeParse({
+    const parsed = signupSchema.safeParse({
+      displayName: form.get("displayName"),
       email: form.get("email"),
       password: form.get("password"),
     });
@@ -61,13 +40,26 @@ function LoginForm() {
 
     setLoading(true);
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword(
-      parsed.data,
-    );
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: { data: { display_name: parsed.data.displayName } },
+    });
     setLoading(false);
 
     if (authError) {
-      setError("Email ou mot de passe incorrect.");
+      setError(
+        authError.message.toLowerCase().includes("already")
+          ? "Un compte existe déjà avec cette adresse. Connectez-vous."
+          : "Inscription impossible pour le moment. Réessayez.",
+      );
+      return;
+    }
+    // Sans confirmation par email, la session est ouverte immédiatement.
+    if (!data.session) {
+      setError(
+        "Compte créé. Confirmez votre adresse par email, puis connectez-vous.",
+      );
       return;
     }
     router.push("/events");
@@ -82,7 +74,7 @@ function LoginForm() {
             SCAL<span className="text-[var(--lime)]">ACTIVITY</span>
           </div>
           <p className="mt-1.5 text-[13px] text-[var(--header-nav)]">
-            Le sport entre collègues. Ouvert à tous.
+            Créez votre compte pour organiser et rejoindre des activités.
           </p>
         </div>
         <div className="rounded-[20px] bg-card p-6">
@@ -92,14 +84,16 @@ function LoginForm() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            {resetSent && (
-              <Alert>
-                <AlertDescription>
-                  Email de réinitialisation envoyé. Suivez son lien pour
-                  définir un nouveau mot de passe.
-                </AlertDescription>
-              </Alert>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="displayName">Nom affiché</Label>
+              <Input
+                id="displayName"
+                name="displayName"
+                autoComplete="name"
+                placeholder="Axel M."
+                required
+              />
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -116,7 +110,8 @@ function LoginForm() {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength={8}
                 required
               />
             </div>
@@ -125,32 +120,17 @@ function LoginForm() {
               disabled={loading}
               className="grotesk h-11 w-full cursor-pointer rounded-full bg-[var(--lime)] text-[15px] font-bold text-[var(--vert)] transition-colors hover:bg-[var(--lime-hover)] disabled:opacity-60"
             >
-              {loading ? "Connexion…" : "Se connecter"}
+              {loading ? "Création…" : "Créer mon compte"}
             </button>
             <Link
-              href="/inscription"
+              href="/login"
               className="w-full text-center text-[13px] text-[var(--texte-2)] underline-offset-4 hover:underline"
             >
-              Créer un compte
+              J&apos;ai déjà un compte
             </Link>
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              className="w-full cursor-pointer text-center text-[13px] text-[var(--texte-2)] underline-offset-4 hover:underline"
-            >
-              Mot de passe oublié ?
-            </button>
           </form>
         </div>
       </div>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }
