@@ -160,3 +160,19 @@ export function dateToParisInput(iso: string | null): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
 }
+
+const weekdayFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "long",
+  timeZone: "UTC",
+});
+
+/**
+ * Nom du jour d'une valeur `datetime-local` ("2026-09-25T12:30" →
+ * "vendredi"). L'heure murale est lue telle quelle, en UTC : sans fuseau
+ * à appliquer, le jour affiché est celui saisi.
+ */
+export function dayName(local: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(local);
+  if (!m) return "";
+  return weekdayFormatter.format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])));
+}

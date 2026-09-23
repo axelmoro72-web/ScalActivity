@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { createEvent, type ActionState } from "../actions";
 import { euroAmountToCents } from "@/lib/schemas";
-import { formatCents } from "@/lib/format";
+import { dayName, formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { SportField } from "@/components/sport-field";
 import { LocationField } from "@/components/location-field";
@@ -32,7 +32,15 @@ export default function NewEventPage() {
     createEvent,
     null,
   );
+  const [sport, setSport] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
   const [capacity, setCapacity] = useState("4");
+
+  // Titre proposé : "Padel du vendredi". La saisie manuelle reprend la main.
+  const jour = dayName(startsAt);
+  const suggestedTitle = sport && jour ? `${sport} du ${jour}` : "";
   const [totalCost, setTotalCost] = useState("0");
 
   // Aperçu du prix par personne, même arrondi que la vue SQL (ceil).
@@ -61,11 +69,21 @@ export default function NewEventPage() {
             </Alert>
           )}
           <Field label="Titre">
-            <Input name="title" placeholder="Padel du jeudi" required />
+            <Input
+              name="title"
+              value={titleTouched ? title : suggestedTitle}
+              onChange={(e) => {
+                setTitleTouched(true);
+                setTitle(e.target.value);
+              }}
+              placeholder="Padel du jeudi"
+              maxLength={200}
+              required
+            />
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Activité">
-              <SportField />
+              <SportField onSportChange={setSport} />
             </Field>
             <Field label="Lieu">
               <LocationField />
@@ -79,7 +97,7 @@ export default function NewEventPage() {
               placeholder="Matériel à prévoir, niveau, point de rendez-vous…"
             />
           </Field>
-          <DateRangeFields />
+          <DateRangeFields onStartChange={setStartsAt} />
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Places">
               <Input

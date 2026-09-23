@@ -24,9 +24,11 @@ function addMinutes(local: string, minutes: number): string {
 export function DateRangeFields({
   defaultStart = "",
   defaultEnd = "",
+  onStartChange,
 }: {
   defaultStart?: string;
   defaultEnd?: string;
+  onStartChange?: (start: string) => void;
 }) {
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
@@ -43,6 +45,7 @@ export function DateRangeFields({
           onChange={(e) => {
             const v = e.target.value;
             setStart(v);
+            onStartChange?.(v);
             if (v && end && end <= v) setEnd(addMinutes(v, 60));
           }}
           required

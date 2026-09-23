@@ -26,16 +26,29 @@ const OTHER = "__autre__";
  * (ancien événement, « Autre ») reste possible et se préremplit en saisie
  * libre.
  */
-export function SportField({ defaultValue = "" }: { defaultValue?: string }) {
+export function SportField({
+  defaultValue = "",
+  onSportChange,
+}: {
+  defaultValue?: string;
+  onSportChange?: (sport: string) => void;
+}) {
   const inList = SPORTS.includes(defaultValue);
   const [choice, setChoice] = useState<string | null>(
     inList ? defaultValue : defaultValue ? OTHER : null,
   );
   const [custom, setCustom] = useState(inList ? "" : defaultValue);
 
+  function announce(sport: string) {
+    onSportChange?.(sport);
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <Select value={choice} onValueChange={(v) => setChoice(v as string)}>
+      <Select value={choice} onValueChange={(v) => {
+          setChoice(v as string);
+          announce(v === OTHER ? custom : (v as string));
+        }}>
         <SelectTrigger className="h-10 w-full rounded-[12px] border-[1.5px] bg-[var(--fond-input)] px-3.5 text-base md:text-sm">
           <SelectValue>
             {(v: string | null) =>
@@ -71,7 +84,10 @@ export function SportField({ defaultValue = "" }: { defaultValue?: string }) {
         <Input
           name="sport"
           value={custom}
-          onChange={(e) => setCustom(e.target.value)}
+          onChange={(e) => {
+            setCustom(e.target.value);
+            announce(e.target.value);
+          }}
           placeholder="Foot, running, bowling…"
           maxLength={100}
           required
