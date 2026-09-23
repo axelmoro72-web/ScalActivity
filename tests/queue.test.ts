@@ -34,12 +34,14 @@ const admin = createClient<Database>(url, serviceKey, {
 
 type UserClient = { user: User; client: SupabaseClient<Database> };
 
+// Adresses en @scalian.com : depuis la migration 20260923090000, un
+// trigger sur auth.users refuse tout autre domaine à l'inscription.
 const PASSWORD = "test-password-42!";
 const testUsers: UserClient[] = [];
 let eventId: string;
 
 async function createTestUser(i: number): Promise<UserClient> {
-  const email = `queue-test-${Date.now()}-${i}@test.local`;
+  const email = `queue-test-${Date.now()}-${i}@scalian.com`;
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password: PASSWORD,
