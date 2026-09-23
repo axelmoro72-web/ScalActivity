@@ -6,6 +6,7 @@ import { euroAmountToCents } from "@/lib/schemas";
 import { formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { SportField } from "@/components/sport-field";
+import { LocationField } from "@/components/location-field";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,7 +68,7 @@ export default function NewEventPage() {
               <SportField />
             </Field>
             <Field label="Lieu">
-              <Input name="location" placeholder="4Padel Toulouse" />
+              <LocationField />
             </Field>
           </div>
           <Field label="Description (facultatif)">

@@ -8,6 +8,7 @@ import { euroAmountToCents } from "@/lib/schemas";
 import { dateToParisInput, formatCents } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { SportField } from "@/components/sport-field";
+import { LocationField } from "@/components/location-field";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -118,7 +119,7 @@ export default function EditEventPage({
               <SportField defaultValue={event.sport} />
             </Field>
             <Field label="Lieu">
-              <Input name="location" defaultValue={event.location ?? ""} />
+              <LocationField defaultValue={event.location ?? ""} />
             </Field>
           </div>
           <Field label="Description (facultatif)">
