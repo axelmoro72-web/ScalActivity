@@ -4,14 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { signupSchema } from "@/lib/schemas";
+import { DOMAINE_AUTORISE, signupSchema } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
- * Création de compte, ouverte à tous : le site ne fonctionne plus sur
- * invitation. La confirmation par email est désactivée côté Supabase
+ * Création de compte, ouverte à tous les collègues : le site ne fonctionne
+ * plus sur invitation, mais reste réservé aux adresses professionnelles,
+ * pour savoir à qui appartient chaque compte. La règle est aussi appliquée
+ * par un trigger sur auth.users : le formulaire n'est pas le seul chemin
+ * vers l'API d'inscription. La confirmation par email est désactivée côté Supabase
  * (tier gratuit : quelques envois par heure, et les scanners anti-phishing
  * consomment les liens), donc signUp ouvre directement la session.
  *
@@ -48,10 +51,13 @@ export default function SignupPage() {
     setLoading(false);
 
     if (authError) {
+      const m = authError.message.toLowerCase();
       setError(
-        authError.message.toLowerCase().includes("already")
+        m.includes("already")
           ? "Un compte existe déjà avec cette adresse. Connectez-vous."
-          : "Inscription impossible pour le moment. Réessayez.",
+          : m.includes("domaine") || m.includes("scalian")
+            ? `Inscription réservée aux adresses ${DOMAINE_AUTORISE}.`
+            : "Inscription impossible pour le moment. Réessayez.",
       );
       return;
     }
@@ -74,7 +80,8 @@ export default function SignupPage() {
             SCAL<span className="text-[var(--lime)]">ACTIVITY</span>
           </div>
           <p className="mt-1.5 text-[13px] text-[var(--header-nav)]">
-            Créez votre compte pour organiser et rejoindre des activités.
+            Créez votre compte avec votre adresse professionnelle
+            {" "}{DOMAINE_AUTORISE}.
           </p>
         </div>
         <div className="rounded-[20px] bg-card p-6">
@@ -101,6 +108,7 @@ export default function SignupPage() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                placeholder={`prenom.nom${DOMAINE_AUTORISE}`}
                 required
               />
             </div>

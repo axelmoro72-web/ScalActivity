@@ -9,13 +9,20 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Mot de passe requis"),
 });
 
+/** Le site est réservé aux collègues : une adresse professionnelle identifie le titulaire du compte. */
+export const DOMAINE_AUTORISE = "@scalian.com";
+
 export const signupSchema = z.object({
   displayName: z
     .string()
     .trim()
     .min(2, "Nom trop court")
     .max(60, "Nom trop long (60 caractères maximum)"),
-  email: z.email("Adresse email invalide"),
+  email: z
+    .email("Adresse email invalide")
+    .refine((v) => v.toLowerCase().endsWith(DOMAINE_AUTORISE), {
+      message: `Utilisez votre adresse professionnelle ${DOMAINE_AUTORISE}`,
+    }),
   password: z.string().min(8, "Mot de passe : 8 caractères minimum"),
 });
 
