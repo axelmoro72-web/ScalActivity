@@ -355,11 +355,23 @@ export default function EventDetailPage({
               {event.location && <LienLieu lieu={event.location} />}
             </div>
             {!cancelled && !past && mine && (
-              <span className="grotesk flex h-[42px] flex-none items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--lime)_40%,transparent)] bg-[color-mix(in_srgb,var(--lime)_14%,transparent)] px-5 text-[13px] font-bold text-[var(--lime)]">
-                {mine.is_confirmed
-                  ? "✓ Vous êtes confirmé·e"
-                  : `Liste d'attente — position ${mine.position - event.capacity}`}
-              </span>
+              <div className="flex flex-none flex-wrap items-center gap-2.5">
+                <span className="grotesk flex h-[42px] items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--lime)_40%,transparent)] bg-[color-mix(in_srgb,var(--lime)_14%,transparent)] px-5 text-[13px] font-bold text-[var(--lime)]">
+                  {mine.is_confirmed
+                    ? "✓ Vous êtes confirmé·e"
+                    : `Liste d'attente — position ${mine.position - event.capacity}`}
+                </span>
+                {/* Se désinscrire se joue juste à côté de son statut : c'est
+                    là qu'on le cherche, pas au bas de la page sous la liste
+                    des participants. */}
+                <button
+                  disabled={busy}
+                  onClick={() => unregisterMutation.mutate()}
+                  className="grotesk h-[42px] cursor-pointer rounded-full bg-[var(--rouge-pale)] px-5 text-[13px] font-bold text-[var(--rouge)] transition-colors hover:bg-[var(--rouge-pale-hover)] disabled:opacity-60"
+                >
+                  Se désinscrire
+                </button>
+              </div>
             )}
             {!cancelled && !past && !mine && (
               <button
@@ -481,26 +493,15 @@ export default function EventDetailPage({
           )}
         </div>
 
-        {!cancelled && (mine || canManage) && (
+        {canManage && (
           <div className="mt-3.5 flex flex-wrap gap-2.5">
-            {mine && !past && (
-              <button
-                disabled={busy}
-                onClick={() => unregisterMutation.mutate()}
-                className="grotesk h-9 cursor-pointer rounded-full border-[1.5px] border-[var(--vert)] px-4 text-[13px] font-semibold text-[var(--vert)] transition-colors hover:bg-[var(--accent)] disabled:opacity-60"
-              >
-                Se désinscrire
-              </button>
-            )}
-            {canManage && (
-              <Link
-                href={`/events/${event.id}/edit`}
-                className="grotesk flex h-9 items-center rounded-full border-[1.5px] border-[var(--vert)] px-4 text-[13px] font-semibold text-[var(--vert)] transition-colors hover:bg-[var(--accent)]"
-              >
-                Modifier
-              </Link>
-            )}
-            {canManage && !past && (
+            <Link
+              href={`/events/${event.id}/edit`}
+              className="grotesk flex h-9 items-center rounded-full border-[1.5px] border-[var(--vert)] px-4 text-[13px] font-semibold text-[var(--vert)] transition-colors hover:bg-[var(--accent)]"
+            >
+              Modifier
+            </Link>
+            {!past && (
               <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
                 <DialogTrigger
                   render={

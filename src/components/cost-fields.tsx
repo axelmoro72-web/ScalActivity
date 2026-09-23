@@ -70,12 +70,17 @@ export function CostFields({
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <Label htmlFor="cost">
-              {mode === "total" ? "Coût total (€)" : "Prix / personne (€)"}
+              {mode === "total" ? "Coût total (€)" : "Prix / pers. (€)"}
             </Label>
+            {/* Libellé abrégé pour que la bascule tienne sur la même ligne
+                dans la colonne de droite — sinon elle passe dessous et
+                décale le champ par rapport à « Places ». ml-auto la garde
+                à droite quand l'écran est malgré tout trop étroit,
+                justify-between seul la renverrait à gauche. */}
             <div
               role="group"
               aria-label="Forme du montant saisi"
-              className="flex rounded-full border border-[var(--input)] p-0.5"
+              className="ml-auto flex rounded-full border border-[var(--input)] p-0.5"
             >
               <ModeButton
                 actif={mode === "total"}
