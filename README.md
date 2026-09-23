@@ -37,6 +37,40 @@ participants avant/après et retourne les personnes promues. Le serveur
 notifie ensuite Teams. C'est le seul endroit du code qui détecte les
 promotions.
 
+## Comptes et inscription
+
+L'inscription est ouverte (plus d'invitation), mais soumise à deux
+garanties distinctes qu'il ne faut pas confondre :
+
+- **le domaine**, imposé par le trigger `enforce_email_domain` sur
+  `auth.users` — le formulaire n'est pas le seul chemin vers l'API
+  d'inscription, joignable directement avec la clé anon ;
+- **la possession de l'adresse**, imposée par la confirmation par email
+  (`enable_confirmations` dans `supabase/config.toml`). Sans elle, le
+  domaine ne prouve rien : n'importe qui peut saisir l'adresse d'un
+  collègue. Tant que le lien n'est pas ouvert, la connexion est refusée
+  (`email_not_confirmed`).
+
+Le lien atterrit sur `/auth/confirmation`, qui ouvre la session depuis le
+fragment d'URL — le template par défaut de Supabase n'étant pas
+personnalisable sans SMTP custom, c'est le même contournement que pour les
+invitations (`/auth/set-password`).
+
+Deux limites du tier gratuit à connaître, toutes deux levées par un SMTP
+custom :
+
+- **deux emails par heure**. Au-delà, l'envoi échoue en 429 : l'écran
+  d'attente et la page de confirmation proposent donc un renvoi manuel.
+- **les liens à usage unique sont consommés par les filtres
+  anti-phishing** des messageries, qui les ouvrent avant leur
+  destinataire. Le cas est détecté (`error_code=otp_expired`) et présenté
+  comme tel plutôt que comme une panne. Le remède durable serait un code
+  à six chiffres à la place du lien, ce qui suppose de personnaliser le
+  template — donc un SMTP custom.
+
+Les réglages d'authentification se poussent par `npx supabase config push`
+(HTTPS, fonctionne malgré le blocage des ports Postgres).
+
 ## Développement
 
 ```bash

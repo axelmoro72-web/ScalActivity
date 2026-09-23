@@ -144,8 +144,11 @@ max_catalogs = 2
 # [storage.analytics.buckets.my-warehouse]
 
 # Store vector embeddings in S3 for large and durable datasets
+# Désactivé : réservé au plan Pro. Laissé à true (valeur par défaut du
+# modèle de la CLI), « supabase config push » échoue en 402 après avoir
+# poussé l'auth — l'erreur laisse croire que rien n'a été appliqué.
 [storage.vector]
-enabled = true
+enabled = false
 max_buckets = 10
 max_indexes = 5
 
@@ -163,8 +166,10 @@ site_url = "https://scalactivity.vercel.app"
 # localhost autorisé pour le dev local (pas de base locale sur ce poste).
 additional_redirect_urls = [
   "https://scalactivity.vercel.app/auth/confirm",
+  "https://scalactivity.vercel.app/auth/confirmation",
   "https://scalactivity.vercel.app/auth/set-password",
   "http://localhost:3000/auth/confirm",
+  "http://localhost:3000/auth/confirmation",
   "http://localhost:3000/auth/set-password",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
@@ -229,7 +234,10 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# Activé : le trigger enforce_email_domain garantit le domaine @scalian.com,
+# pas la possession de l'adresse. Sans confirmation, n'importe qui peut créer
+# un compte au nom d'un collègue. Le lien atterrit sur /auth/confirmation.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
