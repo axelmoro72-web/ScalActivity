@@ -47,6 +47,7 @@ export default function EditEventPage({
     updateEvent,
     null,
   );
+  const [sport, setSport] = useState("");
   const [capacity, setCapacity] = useState<string | null>(null);
   const [totalCost, setTotalCost] = useState<string | null>(null);
 
@@ -116,10 +117,10 @@ export default function EditEventPage({
           </Field>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Activité">
-              <SportField defaultValue={event.sport} />
+              <SportField defaultValue={event.sport} onSportChange={setSport} />
             </Field>
             <Field label="Lieu">
-              <LocationField defaultValue={event.location ?? ""} />
+              <LocationField defaultValue={event.location ?? ""} sport={sport} />
             </Field>
           </div>
           <Field label="Description (facultatif)">

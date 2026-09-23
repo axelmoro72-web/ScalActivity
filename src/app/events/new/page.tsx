@@ -86,7 +86,7 @@ export default function NewEventPage() {
               <SportField onSportChange={setSport} />
             </Field>
             <Field label="Lieu">
-              <LocationField />
+              <LocationField sport={sport} />
             </Field>
           </div>
           <Field label="Description (facultatif)">
