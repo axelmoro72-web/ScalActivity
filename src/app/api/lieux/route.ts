@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { CLUBS, clubsPourSport } from "@/lib/clubs";
 
 /**
  * Suggestions de lieux pour le formulaire d'événement, dans deux modes :
@@ -90,13 +91,21 @@ async function sitesWeb(
   return sortie;
 }
 
-/** Distance à vol d'oiseau depuis le point de référence, en km. */
-function distanceKm(lat: number, lon: number): number {
+/** Distance à vol d'oiseau entre deux points, en km. */
+function entre(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number {
   const rad = (v: number) => (v * Math.PI) / 180;
   const cos =
-    Math.sin(rad(BIAS.lat)) * Math.sin(rad(lat)) +
-    Math.cos(rad(BIAS.lat)) * Math.cos(rad(lat)) * Math.cos(rad(lon - BIAS.lon));
-  return 6371 * Math.acos(Math.min(1, cos));
+    Math.sin(rad(a.lat)) * Math.sin(rad(b.lat)) +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
+  return 6371 * Math.acos(Math.min(1, Math.max(-1, cos)));
+}
+
+/** Distance depuis l'agence, en km. */
+function distanceKm(lat: number, lon: number): number {
+  return entre(BIAS, { lat, lon });
 }
 
 /** "Toulouse Padel Club, Rue André Turcat, 31300 Toulouse" */
@@ -137,6 +146,11 @@ async function photon(q: string, tagsSportifs = false): Promise<Feature[]> {
  * téléphone et souvent le lien de réservation.
  */
 async function lienLieu(lieu: string): Promise<string> {
+  const connu = CLUBS.find((c) =>
+    lieu.toLowerCase().includes(c.nom.toLowerCase()),
+  );
+  if (connu) return connu.url;
+
   const f = (await photon(lieu))[0];
   const p = f?.properties;
   if (p?.osm_type && p?.osm_id) {
@@ -161,7 +175,13 @@ async function lieuxProches(sport: string) {
 
   const parNom = new Map<
     string,
-    { label: string; km: number; osm: { type: string; id: string } }
+    {
+      label: string;
+      km: number;
+      lat: number;
+      lon: number;
+      osm: { type: string; id: string };
+    }
   >();
   for (const f of [...a, ...b, ...c]) {
     const p = f.properties ?? {};
@@ -185,21 +205,40 @@ async function lieuxProches(sport: string) {
       parNom.set(cle, {
         label: label(p),
         km,
+        lat: coords[1],
+        lon: coords[0],
         osm: { type: p.osm_type ?? "", id: p.osm_id ?? "" },
       });
     }
   }
 
-  const proches = [...parNom.values()].sort((x, y) => x.km - y.km).slice(0, 5);
-  const sites = await sitesWeb(proches.map((l) => l.osm));
+  // Les complexes connus passent devant : OpenStreetMap les ignore ou les
+  // décrit mal, alors qu'ils concentrent l'essentiel des réservations.
+  const connus: LieuProche[] = clubsPourSport(sport).map((c) => ({
+    label: `${c.nom}, ${c.adresse}`,
+    km: distanceKm(c.lat, c.lon),
+    url: c.url,
+  }));
+  // Doublons : OpenStreetMap nomme parfois autrement le même équipement
+  // (« Urban Soccer / Urban Padel » pour Urban Padel Carquefou). Deux
+  // lieux à moins de 300 m l'un de l'autre sont le même.
+  const clubsConnus = clubsPourSport(sport);
 
-  return proches.map(({ label: nom, km, osm }) => ({
+  const restants = [...parNom.values()]
+    .filter((l) => clubsConnus.every((c) => entre(c, l) > 0.3))
+    .sort((x, y) => x.km - y.km)
+    .slice(0, 5);
+  const sites = await sitesWeb(restants.map((l) => l.osm));
+
+  const osm: LieuProche[] = restants.map(({ label: nom, km, osm }) => ({
     label: nom,
     km,
     url:
       sites.get(`${osm.type[0]?.toUpperCase() ?? ""}${osm.id}`) ??
       lienRecherche(nom),
   }));
+
+  return [...connus, ...osm].sort((x, y) => x.km - y.km).slice(0, 6);
 }
 
 export async function GET(request: Request) {
