@@ -31,6 +31,7 @@ import {
   timeRange,
 } from "@/lib/format";
 import { AvatarInitials } from "@/components/avatar-initials";
+import { LienLieu } from "@/components/lien-lieu";
 import {
   Dialog,
   DialogContent,
@@ -351,6 +352,7 @@ export default function EventDetailPage({
                   : ""}
                 {event.location ? ` · ${event.location}` : ""}
               </p>
+              {event.location && <LienLieu lieu={event.location} />}
             </div>
             {!cancelled && !past && mine && (
               <span className="grotesk flex h-[42px] flex-none items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--lime)_40%,transparent)] bg-[color-mix(in_srgb,var(--lime)_14%,transparent)] px-5 text-[13px] font-bold text-[var(--lime)]">

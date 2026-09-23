@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { Input } from "@/components/ui/input";
 
-type LieuProche = { label: string; km: number };
+type LieuProche = { label: string; km: number; url: string };
 
 /**
  * Lieu de l'événement : saisie libre, complétée par des suggestions
@@ -87,6 +87,7 @@ export function LocationField({
   // de la saisie, pas une synchronisation avec l'extérieur.
   const shown = value.trim().length < 3 ? [] : suggestions;
   const propositions = value.trim() === "" ? proches : [];
+  const retenu = proches.find((l) => l.label === value.trim());
 
   return (
     <div className="flex flex-col gap-2">
@@ -97,17 +98,27 @@ export function LocationField({
         list={listId}
         autoComplete="off"
         maxLength={200}
-        placeholder="4Padel Toulouse, Le Smile…"
+        placeholder="Nom du lieu ou adresse"
       />
       <datalist id={listId}>
         {shown.map((s) => (
           <option key={s} value={s} />
         ))}
       </datalist>
+      {retenu && (
+        <a
+          href={retenu.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-fit text-[12px] text-[var(--vert)] underline underline-offset-4"
+        >
+          Réserver ou voir les disponibilités
+        </a>
+      )}
       {propositions.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <p className="text-[12px] text-[var(--texte-3)]">
-            {sport} près de Toulouse :
+            {`${sport} près de l'agence :`}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {propositions.map((lieu) => (

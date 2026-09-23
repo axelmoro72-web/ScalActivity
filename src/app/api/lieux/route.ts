@@ -16,7 +16,14 @@ import { createClient } from "@/lib/supabase/server";
  * équipements isolés au nom inutilisable (« Court Extérieur 3 »). Photon
  * cherche par nom : en pratique, les clubs portent le nom du sport.
  */
-const BIAS = { lat: 43.6045, lon: 1.4442, ville: "Toulouse" };
+// Agence Scalian Saint-Herblain, 1 avenue des Lions : les distances et le
+// tri sont calculés depuis là.
+const BIAS = {
+  lat: 47.2462,
+  lon: -1.6178,
+  ville: "Nantes",
+  agence: "Saint-Herblain",
+};
 const RAYON_KM = 40;
 
 /** Types de lieux OSM considérés comme sportifs. */
@@ -36,6 +43,52 @@ type Feature = {
   properties?: Record<string, string>;
   geometry?: { coordinates?: [number, number] };
 };
+
+export type LieuProche = { label: string; km: number; url: string };
+
+/** Lien de repli : la fiche du lieu sur Google Maps (horaires, téléphone, réservation). */
+function lienRecherche(label: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label)}`;
+}
+
+/**
+ * Site officiel des lieux, lu dans OpenStreetMap via Nominatim : Photon ne
+ * renvoie pas les tags secondaires. Un seul appel groupé, et l'absence de
+ * réponse n'est pas bloquante — on retombe sur la recherche Google.
+ */
+async function sitesWeb(
+  ids: { type: string; id: string }[],
+): Promise<Map<string, string>> {
+  const sortie = new Map<string, string>();
+  const osmIds = ids
+    .filter((i) => i.type && i.id)
+    .map((i) => `${i.type[0].toUpperCase()}${i.id}`)
+    .slice(0, 10);
+  if (osmIds.length === 0) return sortie;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/lookup?osm_ids=${osmIds.join(",")}&format=json&extratags=1`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "ScalActivity (https://scalactivity.vercel.app)" },
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return sortie;
+    const data = (await res.json()) as {
+      osm_type?: string;
+      osm_id?: number;
+      extratags?: Record<string, string>;
+    }[];
+    for (const e of data) {
+      const site = e.extratags?.website ?? e.extratags?.["contact:website"];
+      if (site && e.osm_type && e.osm_id) {
+        sortie.set(`${e.osm_type[0].toUpperCase()}${e.osm_id}`, site);
+      }
+    }
+  } catch (err) {
+    console.error("Nominatim injoignable :", err);
+  }
+  return sortie;
+}
 
 /** Distance à vol d'oiseau depuis le point de référence, en km. */
 function distanceKm(lat: number, lon: number): number {
@@ -79,6 +132,22 @@ async function photon(q: string, tagsSportifs = false): Promise<Feature[]> {
 }
 
 /**
+ * Lien à proposer pour un lieu déjà choisi : son site officiel s'il est
+ * connu d'OpenStreetMap, sinon sa fiche Google Maps, qui porte horaires,
+ * téléphone et souvent le lien de réservation.
+ */
+async function lienLieu(lieu: string): Promise<string> {
+  const f = (await photon(lieu))[0];
+  const p = f?.properties;
+  if (p?.osm_type && p?.osm_id) {
+    const sites = await sitesWeb([{ type: p.osm_type, id: p.osm_id }]);
+    const site = sites.get(`${p.osm_type[0].toUpperCase()}${p.osm_id}`);
+    if (site) return site;
+  }
+  return lienRecherche(lieu);
+}
+
+/**
  * Lieux proches où pratiquer ce sport. Trois recherches complémentaires :
  * le sport seul rate des clubs que la requête avec la ville retrouve, et
  * le filtre par type ramène les équipements dont le nom ne dit rien.
@@ -90,7 +159,10 @@ async function lieuxProches(sport: string) {
     photon(`${sport} ${BIAS.ville}`),
   ]);
 
-  const parNom = new Map<string, { label: string; km: number }>();
+  const parNom = new Map<
+    string,
+    { label: string; km: number; osm: { type: string; id: string } }
+  >();
   for (const f of [...a, ...b, ...c]) {
     const p = f.properties ?? {};
     const coords = f.geometry?.coordinates;
@@ -109,10 +181,25 @@ async function lieuxProches(sport: string) {
 
     const cle = p.name.toLowerCase();
     const existant = parNom.get(cle);
-    if (!existant || km < existant.km) parNom.set(cle, { label: label(p), km });
+    if (!existant || km < existant.km) {
+      parNom.set(cle, {
+        label: label(p),
+        km,
+        osm: { type: p.osm_type ?? "", id: p.osm_id ?? "" },
+      });
+    }
   }
 
-  return [...parNom.values()].sort((x, y) => x.km - y.km).slice(0, 5);
+  const proches = [...parNom.values()].sort((x, y) => x.km - y.km).slice(0, 5);
+  const sites = await sitesWeb(proches.map((l) => l.osm));
+
+  return proches.map(({ label: nom, km, osm }) => ({
+    label: nom,
+    km,
+    url:
+      sites.get(`${osm.type[0]?.toUpperCase() ?? ""}${osm.id}`) ??
+      lienRecherche(nom),
+  }));
 }
 
 export async function GET(request: Request) {
@@ -126,9 +213,13 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams;
   const sport = params.get("sport")?.trim() ?? "";
+  const lieu = params.get("lieu")?.trim() ?? "";
   const q = params.get("q")?.trim() ?? "";
 
   try {
+    if (lieu.length >= 3) {
+      return NextResponse.json({ url: await lienLieu(lieu) });
+    }
     if (sport.length >= 3) {
       return NextResponse.json({ lieux: await lieuxProches(sport) });
     }
