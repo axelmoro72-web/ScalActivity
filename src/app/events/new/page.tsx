@@ -2,12 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { createEvent, type ActionState } from "../actions";
-import { euroAmountToCents } from "@/lib/schemas";
-import { dayName, formatCents } from "@/lib/format";
+import { dayName } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { SportField } from "@/components/sport-field";
 import { LocationField } from "@/components/location-field";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { CostFields } from "@/components/cost-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,15 +41,6 @@ export default function NewEventPage() {
   // Titre proposé : "Padel du vendredi". La saisie manuelle reprend la main.
   const jour = dayName(startsAt);
   const suggestedTitle = sport && jour ? `${sport} du ${jour}` : "";
-  const [totalCost, setTotalCost] = useState("0");
-
-  // Aperçu du prix par personne, même arrondi que la vue SQL (ceil).
-  const parsedCost = euroAmountToCents.safeParse(totalCost);
-  const parsedCapacity = parseInt(capacity, 10);
-  const preview =
-    parsedCost.success && parsedCapacity >= 1 && parsedCapacity <= 100
-      ? formatCents(Math.ceil(parsedCost.data / parsedCapacity))
-      : null;
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-6 py-7">
@@ -59,7 +50,7 @@ export default function NewEventPage() {
             Nouvel événement
           </h1>
           <p className="mt-1 text-[13px] text-[var(--header-nav)]">
-            Le coût total est réparti entre les places. Heures de Paris.
+            Coût total à partager ou prix par personne, au choix. Heures de Paris.
           </p>
         </div>
         <form action={formAction} className="flex flex-col gap-4 px-6 py-5">
@@ -98,36 +89,7 @@ export default function NewEventPage() {
             />
           </Field>
           <DateRangeFields onStartChange={setStartsAt} />
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Places">
-              <Input
-                name="capacity"
-                type="number"
-                min={1}
-                max={100}
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Coût total (€)">
-              <Input
-                name="totalCost"
-                inputMode="decimal"
-                value={totalCost}
-                onChange={(e) => setTotalCost(e.target.value)}
-                required
-              />
-            </Field>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-[var(--lime-bord)] bg-[var(--lime-fond)] px-4 py-3">
-            <span className="grotesk text-xs font-semibold tracking-[0.06em] uppercase text-[var(--lime-texte)]">
-              Prix par personne
-            </span>
-            <span className="grotesk text-xl font-bold">
-              {preview ?? "—"}
-            </span>
-          </div>
+          <CostFields capacity={capacity} onCapacityChange={setCapacity} />
           <button
             type="submit"
             disabled={pending}

@@ -70,7 +70,8 @@ export async function createEvent(
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt") ?? "",
     capacity: formData.get("capacity"),
-    totalCost: formData.get("totalCost"),
+    costMode: formData.get("costMode"),
+    cost: formData.get("cost"),
   });
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0].message };
@@ -144,7 +145,8 @@ export async function updateEvent(
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt") ?? "",
     capacity: formData.get("capacity"),
-    totalCost: formData.get("totalCost"),
+    costMode: formData.get("costMode"),
+    cost: formData.get("cost"),
   });
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0].message };

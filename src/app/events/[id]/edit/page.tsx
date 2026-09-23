@@ -4,12 +4,12 @@ import Link from "next/link";
 import { use, useActionState, useState } from "react";
 import { updateEvent, type ActionState } from "../../actions";
 import { useCurrentProfile, useEvent, useParticipants } from "@/lib/queries";
-import { euroAmountToCents } from "@/lib/schemas";
-import { dateToParisInput, formatCents } from "@/lib/format";
+import { dateToParisInput } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { SportField } from "@/components/sport-field";
 import { LocationField } from "@/components/location-field";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { CostFields } from "@/components/cost-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -49,7 +49,6 @@ export default function EditEventPage({
   );
   const [sport, setSport] = useState("");
   const [capacity, setCapacity] = useState<string | null>(null);
-  const [totalCost, setTotalCost] = useState<string | null>(null);
 
   if (isPending) {
     return (
@@ -84,14 +83,6 @@ export default function EditEventPage({
   ).length;
 
   const capacityValue = capacity ?? String(event.capacity);
-  const totalCostValue = totalCost ?? centsToInput(event.total_cost_cents);
-
-  const parsedCost = euroAmountToCents.safeParse(totalCostValue);
-  const parsedCapacity = parseInt(capacityValue, 10);
-  const preview =
-    parsedCost.success && parsedCapacity >= 1 && parsedCapacity <= 100
-      ? formatCents(Math.ceil(parsedCost.data / parsedCapacity))
-      : null;
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-6 py-7">
@@ -136,41 +127,21 @@ export default function EditEventPage({
             defaultStart={dateToParisInput(event.starts_at)}
             defaultEnd={dateToParisInput(event.ends_at)}
           />
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Places">
-              <Input
-                name="capacity"
-                type="number"
-                min={Math.max(confirmedCount, 1)}
-                max={100}
-                value={capacityValue}
-                onChange={(e) => setCapacity(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Coût total (€)">
-              <Input
-                name="totalCost"
-                inputMode="decimal"
-                value={totalCostValue}
-                onChange={(e) => setTotalCost(e.target.value)}
-                required
-              />
-            </Field>
-          </div>
-          {confirmedCount > 0 && (
-            <p className="-mt-1 text-xs text-[var(--texte-2)]">
-              {confirmedCount} personne{confirmedCount > 1 ? "s" : ""} déjà
-              confirmée{confirmedCount > 1 ? "s" : ""} : le nombre de places ne
-              peut pas descendre en dessous.
-            </p>
-          )}
-          <div className="flex items-center justify-between rounded-xl border border-[var(--lime-bord)] bg-[var(--lime-fond)] px-4 py-3">
-            <span className="grotesk text-xs font-semibold tracking-[0.06em] uppercase text-[var(--lime-texte)]">
-              Prix par personne
-            </span>
-            <span className="grotesk text-xl font-bold">{preview ?? "—"}</span>
-          </div>
+          <CostFields
+            capacity={capacityValue}
+            onCapacityChange={setCapacity}
+            capacityMin={Math.max(confirmedCount, 1)}
+            defaultAmount={centsToInput(event.total_cost_cents)}
+            note={
+              confirmedCount > 0 ? (
+                <p className="-mt-1 text-xs text-[var(--texte-2)]">
+                  {confirmedCount} personne{confirmedCount > 1 ? "s" : ""} déjà
+                  confirmée{confirmedCount > 1 ? "s" : ""} : le nombre de places
+                  ne peut pas descendre en dessous.
+                </p>
+              ) : null
+            }
+          />
           <div className="flex flex-wrap gap-2.5">
             <button
               type="submit"

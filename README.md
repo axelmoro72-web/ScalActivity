@@ -14,6 +14,11 @@ Next.js (App Router) + TypeScript · Supabase (Postgres, Auth, RLS) via
 - **Pas de statut stocké sur les inscriptions** : confirmé / liste d'attente
   se déduit de l'ordre d'inscription (`row_number()` sur `registered_at, id`)
   comparé à `capacity`. Une désinscription promeut automatiquement le suivant.
+- **Le coût se saisit au choix** en total à partager ou en prix par
+  personne (`costMode` dans le formulaire) : selon l'activité, c'est l'un ou
+  l'autre qui est connu d'avance. La conversion a lieu à l'entrée, dans le
+  schéma Zod — le mode n'est pas stocké, et ajouter des places baisse donc
+  toujours le prix par personne sans toucher au total.
 - **Le prix par personne n'est jamais stocké** : `total_cost_cents / capacity`,
   calculé par la vue `event_summary`. Montants entiers en centimes.
 - **Aucune suppression physique**, à deux exceptions près : annulation =

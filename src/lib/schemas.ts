@@ -71,6 +71,19 @@ function parisDateTime(label: string) {
   });
 }
 
+/**
+ * Le coût peut être saisi comme un total à partager ou comme un prix par
+ * personne : selon l'activité, c'est l'un ou l'autre qui est connu.
+ * La conversion se fait ici, à l'entrée.
+ */
+export const COST_MODES = ["total", "per_person"] as const;
+export type CostMode = (typeof COST_MODES)[number];
+
+// total_cost_cents est un int4. En mode « prix par personne » le montant
+// est multiplié par la capacité (jusqu'à 100) : sans ce plafond, une
+// saisie élevée déborderait l'entier et Postgres refuserait la ligne.
+const TOTAL_MAX_CENTS = 99_999_999;
+
 const eventFieldsSchema = z.object({
   title: z.string().trim().min(1, "Titre requis").max(200),
   sport: z.string().trim().min(1, "Sport requis").max(100),
@@ -94,8 +107,21 @@ const eventFieldsSchema = z.object({
     .int("Nombre de places entier requis")
     .min(1, "Au moins une place")
     .max(100, "100 places maximum"),
-  totalCost: euroAmountToCents,
-});
+  // Forme du montant saisi. Absent d'un formulaire plus ancien encore en
+  // cache : on retombe sur le coût total, l'ancien comportement.
+  costMode: z.enum(COST_MODES).catch("total"),
+  cost: euroAmountToCents,
+})
+  .transform((v) => ({
+    ...v,
+    // Une seule forme est stockée : le prix par personne reste dérivé
+    // par la vue event_summary.
+    totalCost: v.costMode === "per_person" ? v.cost * v.capacity : v.cost,
+  }))
+  .refine((v) => v.totalCost <= TOTAL_MAX_CENTS, {
+    message: "Coût total trop élevé (999 999,99 € maximum)",
+    path: ["cost"],
+  });
 
 const endsAfterStarts = (v: { startsAt: Date; endsAt: Date | null }) =>
   v.endsAt === null || v.endsAt > v.startsAt;
