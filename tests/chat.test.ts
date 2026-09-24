@@ -223,4 +223,19 @@ describe("fil de discussion", () => {
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
   });
+
+  it("limite le débit : au-delà de 10 messages par minute, l'envoi est refusé", async () => {
+    const u1 = testUsers[0];
+    let refus: { message: string } | null = null;
+    // Les tests précédents ont déjà pu poster dans la minute : on s'arrête
+    // au premier refus, qui doit survenir au plus tard au 11e message.
+    for (let i = 0; i < 11 && !refus; i++) {
+      const { error } = await u1.client
+        .from("event_messages")
+        .insert({ event_id: eventId, user_id: u1.user.id, body: `Rafale ${i}` });
+      refus = error;
+    }
+    expect(refus).not.toBeNull();
+    expect(refus!.message).toContain("rate_limited");
+  });
 });

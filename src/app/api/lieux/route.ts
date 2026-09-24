@@ -47,6 +47,39 @@ type Feature = {
 
 export type LieuProche = { label: string; km: number; url: string };
 
+/**
+ * Les sites viennent d'OpenStreetMap, éditable par tous : seule une URL
+ * http(s) bien formée est proposée en lien (pas de `javascript:`…).
+ */
+function urlWeb(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Limite par membre, en mémoire : chaque appel en déclenche 3 à 5 vers
+ * Photon et Nominatim, dont la charte d'usage bannit les IP trop
+ * bavardes. Par instance serverless seulement — un garde-fou contre une
+ * boucle ou un script, pas une limite stricte.
+ */
+const FENETRE_MS = 60_000;
+const MAX_PAR_FENETRE = 40;
+const appels = new Map<string, number[]>();
+
+function tropDAppels(userId: string): boolean {
+  const now = Date.now();
+  const recents = (appels.get(userId) ?? []).filter(
+    (t) => now - t < FENETRE_MS,
+  );
+  recents.push(now);
+  appels.set(userId, recents);
+  return recents.length > MAX_PAR_FENETRE;
+}
+
 /** Lien de repli : la fiche du lieu sur Google Maps (horaires, téléphone, réservation). */
 function lienRecherche(label: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label)}`;
@@ -80,7 +113,8 @@ async function sitesWeb(
       extratags?: Record<string, string>;
     }[];
     for (const e of data) {
-      const site = e.extratags?.website ?? e.extratags?.["contact:website"];
+      const brut = e.extratags?.website ?? e.extratags?.["contact:website"];
+      const site = brut ? urlWeb(brut) : null;
       if (site && e.osm_type && e.osm_id) {
         sortie.set(`${e.osm_type[0].toUpperCase()}${e.osm_id}`, site);
       }
@@ -248,6 +282,9 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ suggestions: [], lieux: [] }, { status: 401 });
+  }
+  if (tropDAppels(user.id)) {
+    return NextResponse.json({ suggestions: [], lieux: [] }, { status: 429 });
   }
 
   const params = new URL(request.url).searchParams;

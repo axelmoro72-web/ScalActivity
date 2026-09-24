@@ -10,7 +10,7 @@ import {
   updateEventSchema,
 } from "@/lib/schemas";
 import { formatCents, formatDate } from "@/lib/format";
-import { sendTeamsNotification, siteUrl } from "@/lib/teams";
+import { md, sendTeamsNotification, siteUrl } from "@/lib/teams";
 
 export type ActionState = { ok: boolean; message: string } | null;
 
@@ -23,7 +23,7 @@ function eventSummaryLines(e: {
   totalCost: number;
 }): string[] {
   return [
-    `**${e.sport}** · ${formatDate(e.startsAt.toISOString())}${e.location ? ` · ${e.location}` : ""}`,
+    `**${md(e.sport)}** · ${formatDate(e.startsAt.toISOString())}${e.location ? ` · ${md(e.location)}` : ""}`,
     `${e.capacity} place${e.capacity > 1 ? "s" : ""}${e.totalCost > 0 ? ` · coût total ${formatCents(e.totalCost)}` : ""}`,
   ];
 }
@@ -105,10 +105,10 @@ export async function createEvent(
     .single();
   await sendTeamsNotification(
     data.id,
-    `Nouvelle activité : ${parsed.data.title} 🏃`,
+    `Nouvelle activité : ${md(parsed.data.title)} 🏃`,
     [
       ...eventSummaryLines(parsed.data),
-      ...(profile ? [`Proposée par ${profile.display_name}.`] : []),
+      ...(profile ? [`Proposée par ${md(profile.display_name)}.`] : []),
     ],
     eventLink(data.id, "Voir et s'inscrire"),
   );
@@ -188,7 +188,7 @@ export async function updateEvent(
   if (promoted && promoted.length > 0) {
     for (const p of promoted) {
       await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
-        `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${parsed.data.title} » (${formatDate(parsed.data.startsAt.toISOString())}) : le nombre de places a été augmenté.`,
+        `**${md(p.display_name)}** passe de la liste d'attente à confirmé pour « ${md(parsed.data.title)} » (${formatDate(parsed.data.startsAt.toISOString())}) : le nombre de places a été augmenté.`,
       ]);
     }
   }
@@ -200,10 +200,10 @@ export async function updateEvent(
     .single();
   await sendTeamsNotification(
     parsedId.data,
-    `Activité modifiée : ${parsed.data.title} ✏️`,
+    `Activité modifiée : ${md(parsed.data.title)} ✏️`,
     [
       ...eventSummaryLines(parsed.data),
-      ...(profile ? [`Modifiée par ${profile.display_name}.`] : []),
+      ...(profile ? [`Modifiée par ${md(profile.display_name)}.`] : []),
     ],
     eventLink(parsedId.data, "Voir l'activité"),
   );
@@ -255,8 +255,8 @@ export async function registerToEvent(eventId: string): Promise<ActionState> {
     await sendTeamsNotification(
       parsedId.data,
       me.is_confirmed
-        ? `✅ ${me.display_name} s'inscrit à « ${summary.title} »`
-        : `⏳ ${me.display_name} rejoint la liste d'attente de « ${summary.title} »`,
+        ? `✅ ${md(me.display_name)} s'inscrit à « ${md(summary.title)} »`
+        : `⏳ ${md(me.display_name)} rejoint la liste d'attente de « ${md(summary.title)} »`,
       [fillLine(summary)],
       eventLink(parsedId.data, "Voir l'activité"),
     );
@@ -309,7 +309,7 @@ export async function unregisterFromEvent(
   if (event && profile) {
     await sendTeamsNotification(
       parsedId.data,
-      `🚪 ${profile.display_name} se désinscrit de « ${event.title} »`,
+      `🚪 ${md(profile.display_name)} se désinscrit de « ${md(event.title)} »`,
       [fillLine(event)],
       eventLink(parsedId.data, "Voir l'activité"),
     );
@@ -319,8 +319,8 @@ export async function unregisterFromEvent(
     for (const p of promoted) {
       await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
         event
-          ? `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${event.title} » (${formatDate(event.starts_at)}).`
-          : `**${p.display_name}** passe de la liste d'attente à confirmé.`,
+          ? `**${md(p.display_name)}** passe de la liste d'attente à confirmé pour « ${md(event.title)} » (${formatDate(event.starts_at)}).`
+          : `**${md(p.display_name)}** passe de la liste d'attente à confirmé.`,
       ]);
     }
   }
@@ -340,17 +340,17 @@ export async function cancelEvent(eventId: string): Promise<ActionState> {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: "Vous devez être connecté." };
 
-  // La RLS n'autorise l'update qu'au créateur ou à un admin : si la ligne
-  // n'est pas visée, data revient vide et on refuse.
-  const { data, error } = await supabase
-    .from("events")
-    .update({ status: "cancelled" })
-    .eq("id", parsedId.data)
-    .eq("status", "open")
-    .select("title, starts_at")
-    .single();
+  // RPC cancel_event : la table n'est plus modifiable directement, la
+  // fonction vérifie créateur-ou-admin et la transition open → cancelled.
+  const { data: rows, error } = await supabase.rpc("cancel_event", {
+    p_event_id: parsedId.data,
+  });
+  const data = rows?.[0];
 
   if (error || !data) {
+    if (error && !/not_allowed|event_not_open/.test(error.message)) {
+      console.error("cancel_event :", error);
+    }
     return {
       ok: false,
       message:
@@ -364,9 +364,9 @@ export async function cancelEvent(eventId: string): Promise<ActionState> {
     .eq("event_id", parsedId.data)
     .order("position");
 
-  const names = (participants ?? []).map((p) => p.display_name);
+  const names = (participants ?? []).map((p) => md(p.display_name));
   await sendTeamsNotification(parsedId.data, "Événement annulé ❌", [
-    `« ${data.title} » prévu le ${formatDate(data.starts_at)} est annulé.`,
+    `« ${md(data.title)} » prévu le ${formatDate(data.starts_at)} est annulé.`,
     names.length > 0
       ? `Personnes concernées : ${names.join(", ")}.`
       : "Personne n'était inscrit.",
@@ -448,6 +448,12 @@ export async function postMessage(
   });
 
   if (error) {
+    if (error.message.includes("rate_limited")) {
+      return {
+        ok: false,
+        message: "Trop de messages d'affilée. Patientez une minute.",
+      };
+    }
     console.error("postMessage :", error);
     return { ok: false, message: "L'envoi a échoué. Réessayez." };
   }
@@ -458,8 +464,8 @@ export async function postMessage(
   ]);
   await sendTeamsNotification(
     parsedId.data,
-    `💬 ${profile?.display_name ?? "Quelqu'un"} sur « ${event?.title ?? "une activité"} »`,
-    [parsedBody.data],
+    `💬 ${md(profile?.display_name ?? "Quelqu'un")} sur « ${md(event?.title ?? "une activité")} »`,
+    [md(parsedBody.data)],
     eventLink(parsedId.data, "Répondre"),
   );
 

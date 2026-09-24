@@ -72,6 +72,16 @@ export async function sendTeamsNotification(
 }
 
 /**
+ * Neutralise le Markdown d'un texte saisi par un membre (titre, lieu,
+ * nom affiché, message) avant de l'insérer dans une carte : les
+ * TextBlock interprètent le Markdown, et un `[texte](https://…)` y
+ * deviendrait un lien d'apparence légitime dans le canal Teams.
+ */
+export function md(text: string): string {
+  return text.replace(/[\\`*_~[\]()<>#|!]/g, "\\$&");
+}
+
+/**
  * URL publique du site, pour les liens des cartes. NEXT_PUBLIC_SITE_URL
  * prime ; à défaut, Vercel fournit le domaine de production.
  */

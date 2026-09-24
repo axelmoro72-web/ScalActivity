@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { setPasswordSchema } from "@/lib/schemas";
+import { setPasswordSchema, signupSchema } from "@/lib/schemas";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -20,7 +20,6 @@ type SessionState = "loading" | "ready" | "invalid" | "expired";
 export default function SetPasswordPage() {
   const router = useRouter();
   const [sessionState, setSessionState] = useState<SessionState>("loading");
-  const [sessionDetail, setSessionDetail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +54,7 @@ export default function SetPasswordPage() {
         }
         // Le lien ne doit pas rester dans l'historique du navigateur.
         window.history.replaceState(null, "", window.location.pathname);
-        setSessionDetail(failure);
+        if (failure) console.error("Ouverture de session :", failure);
         setSessionState(failure ? "invalid" : "ready");
         return;
       }
@@ -83,7 +82,13 @@ export default function SetPasswordPage() {
       setError(parsed.error.issues[0].message);
       return;
     }
-    const displayName = String(form.get("displayName") ?? "").trim();
+    const rawName = String(form.get("displayName") ?? "").trim();
+    const parsedName = signupSchema.shape.displayName.safeParse(rawName);
+    if (rawName && !parsedName.success) {
+      setError(parsedName.error.issues[0].message);
+      return;
+    }
+    const displayName = parsedName.success ? parsedName.data : "";
 
     setLoading(true);
     const supabase = createClient();
@@ -136,11 +141,6 @@ export default function SetPasswordPage() {
               <AlertDescription>
                 Lien d&apos;invitation invalide ou expiré. Demandez une
                 nouvelle invitation.
-                {sessionDetail && (
-                  <span className="mt-2 block font-mono text-xs">
-                    Détail technique : {sessionDetail}
-                  </span>
-                )}
               </AlertDescription>
             </Alert>
           )}
@@ -167,6 +167,7 @@ export default function SetPasswordPage() {
                 <Input
                   id="displayName"
                   name="displayName"
+                  maxLength={60}
                   placeholder="Axel M."
                 />
               </div>

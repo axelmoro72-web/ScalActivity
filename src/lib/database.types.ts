@@ -98,15 +98,18 @@ export type Database = {
           total_cost_cents?: number;
           created_by: string;
         };
-        Update: Partial<Omit<Event, "id" | "created_at">>;
+        // Aucun UPDATE direct : modifier passe par update_event, annuler
+        // par cancel_event (règles métier vérifiées côté base).
+        Update: Record<string, never>;
         Relationships: [];
       };
       registrations: {
         Row: Registration;
-        // Grants par colonne : seules event_id/user_id sont insérables,
-        // seul cancelled_at est modifiable.
+        // Grants par colonne : seules event_id/user_id sont insérables.
+        // Aucun UPDATE direct : la désinscription passe par
+        // cancel_registration.
         Insert: { event_id: string; user_id: string };
-        Update: { cancelled_at?: string | null };
+        Update: Record<string, never>;
         Relationships: [];
       };
       event_messages: {
@@ -125,6 +128,10 @@ export type Database = {
       event_message_list: { Row: EventMessage; Relationships: [] };
     };
     Functions: {
+      cancel_event: {
+        Args: { p_event_id: string };
+        Returns: { title: string; starts_at: string }[];
+      };
       cancel_registration: {
         Args: { p_event_id: string };
         Returns: PromotedUser[];

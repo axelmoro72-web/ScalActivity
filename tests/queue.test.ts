@@ -290,3 +290,72 @@ describe("file d'attente", () => {
     expect(error!.message).toContain("not_registered");
   });
 });
+
+// Les règles métier ne tiennent que si les tables ne sont pas modifiables
+// directement : ces tests passent par PostgREST, comme un script muni de
+// la clé anon et d'une session, sans passer par l'application.
+describe("écritures directes interdites", () => {
+  it("interdit de réactiver une inscription annulée pour retrouver sa place", async () => {
+    const u4 = testUsers[3]; // désinscrit plus haut, inscrit en 4e position
+    const { error } = await u4.client
+      .from("registrations")
+      .update({ cancelled_at: null } as never)
+      .eq("event_id", eventId)
+      .eq("user_id", u4.user.id);
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe("42501");
+
+    const list = await participants();
+    expect(list.map((p) => p.user_id)).not.toContain(u4.user.id);
+  });
+
+  it("interdit au créateur de modifier l'événement hors RPC", async () => {
+    const u1 = testUsers[0];
+    const { error } = await u1.client
+      .from("events")
+      .update({ capacity: 1 } as never)
+      .eq("id", eventId);
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe("42501");
+  });
+
+  it("interdit d'imposer le statut à la création", async () => {
+    const u1 = testUsers[0];
+    const { error } = await u1.client.from("events").insert({
+      title: "Statut imposé",
+      sport: "padel",
+      starts_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      capacity: 2,
+      created_by: u1.user.id,
+      status: "cancelled",
+    } as never);
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe("42501");
+  });
+});
+
+describe("annulation d'un événement (cancel_event)", () => {
+  it("la refuse à qui n'est ni créateur ni admin", async () => {
+    const intruder = testUsers[1];
+    const { error } = await intruder.client.rpc("cancel_event", {
+      p_event_id: eventId,
+    });
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain("not_allowed");
+  });
+
+  it("l'accepte pour le créateur, une seule fois", async () => {
+    const u1 = testUsers[0];
+    const { data, error } = await u1.client.rpc("cancel_event", {
+      p_event_id: eventId,
+    });
+    expect(error).toBeNull();
+    expect(data?.[0]?.title).toBe("Test file d'attente");
+
+    const { error: again } = await u1.client.rpc("cancel_event", {
+      p_event_id: eventId,
+    });
+    expect(again).not.toBeNull();
+    expect(again!.message).toContain("event_not_open");
+  });
+});

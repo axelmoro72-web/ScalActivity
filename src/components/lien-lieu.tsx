@@ -22,7 +22,8 @@ export function LienLieu({ lieu }: { lieu: string }) {
         });
         if (!res.ok) return;
         const data = (await res.json()) as { url?: string };
-        setUrl(data.url ?? null);
+        // Défense en profondeur : seul un lien web est rendu cliquable.
+        setUrl(data.url && /^https?:\/\//i.test(data.url) ? data.url : null);
       } catch {
         // Pas de lien : le lieu reste affiché en texte.
       }

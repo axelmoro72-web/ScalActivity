@@ -28,7 +28,6 @@ type Etat = "verification" | "expire" | "invalide";
 export default function ConfirmationPage() {
   const router = useRouter();
   const [etat, setEtat] = useState<Etat>("verification");
-  const [detail, setDetail] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -59,7 +58,9 @@ export default function ConfirmationPage() {
         window.history.replaceState(null, "", window.location.pathname);
 
         if (echec) {
-          setDetail(echec);
+          // Le détail reste dans la console : l'afficher n'aide pas la
+          // personne et expose le fonctionnement interne.
+          console.error("Confirmation :", echec);
           setEtat("invalide");
           return;
         }
@@ -117,11 +118,6 @@ export default function ConfirmationPage() {
               <Alert variant="destructive">
                 <AlertDescription>
                   Lien de confirmation invalide ou expiré.
-                  {detail && (
-                    <span className="mt-2 block font-mono text-xs">
-                      Détail technique : {detail}
-                    </span>
-                  )}
                 </AlertDescription>
               </Alert>
               <RenvoyerLeLien />

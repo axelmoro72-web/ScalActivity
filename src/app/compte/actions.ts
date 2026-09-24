@@ -25,12 +25,13 @@ export async function deleteAccount(): Promise<CompteState> {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: "Vous devez être connecté." };
 
+  const now = new Date().toISOString();
   const { data: aVenir, error: readError } = await supabase
     .from("events")
     .select("id")
     .eq("created_by", user.id)
     .eq("status", "open")
-    .gt("starts_at", new Date().toISOString());
+    .gt("starts_at", now);
 
   if (readError) {
     console.error("deleteAccount (lecture) :", readError);
@@ -43,11 +44,16 @@ export async function deleteAccount(): Promise<CompteState> {
     };
   }
 
+  // Mêmes critères que la vérification, et non « toutes ses activités » :
+  // une activité à venir créée entre-temps (autre onglet) n'est pas
+  // effacée sans prévenir ses inscrits. Elle bloque alors deleteUser
+  // (clé étrangère sans cascade) et la suppression échoue proprement.
   const admin = createAdminClient();
   const { error: eventsError } = await admin
     .from("events")
     .delete()
-    .eq("created_by", user.id);
+    .eq("created_by", user.id)
+    .or(`status.eq.cancelled,starts_at.lte."${now}"`);
   if (eventsError) {
     console.error("deleteAccount (événements) :", eventsError);
     return { ok: false, message: "Suppression impossible. Réessayez." };

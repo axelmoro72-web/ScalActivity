@@ -27,7 +27,11 @@ export const signupSchema = z.object({
 });
 
 export const inviteSchema = z.object({
-  email: z.email("Adresse email invalide"),
+  email: z
+    .email("Adresse email invalide")
+    .refine((v) => v.toLowerCase().endsWith(DOMAINE_AUTORISE), {
+      message: `Seules les adresses ${DOMAINE_AUTORISE} peuvent être invitées`,
+    }),
 });
 
 export const setPasswordSchema = z

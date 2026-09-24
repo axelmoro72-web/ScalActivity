@@ -34,6 +34,11 @@ Next.js (App Router) + TypeScript · Supabase (Postgres, Auth, RLS) via
   `20260731150000`).
 - **RLS partout**, colonnes sensibles verrouillées par des grants par colonne
   (`registered_at`, `role`…).
+- **Toute écriture qui porte une règle métier passe par une RPC `security
+  definer`** (`update_event`, `cancel_event`, `cancel_registration`), qui
+  vérifie elle-même l'appelant ; l'UPDATE direct sur `events` et
+  `registrations` est révoqué. Une règle posée seulement dans une RPC
+  `security invoker` se contourne par un simple PATCH PostgREST.
 
 Les promotions depuis la liste d'attente n'émettant aucun événement
 observable, la désinscription passe par la fonction SQL
