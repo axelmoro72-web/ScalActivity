@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { use, useActionState, useState } from "react";
 import { createEvent, type ActionState } from "../actions";
 import { dayName } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,14 @@ function Field({
   );
 }
 
-export default function NewEventPage() {
+export default function NewEventPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ passe?: string }>;
+}) {
+  // ?passe=1 (bouton de l'onglet « Terminés ») : activité déjà jouée,
+  // créée pour en saisir le résultat.
+  const passe = use(searchParams).passe === "1";
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     createEvent,
     null,
@@ -47,13 +54,16 @@ export default function NewEventPage() {
       <div className="overflow-hidden rounded-[20px] border border-[var(--border)] bg-card">
         <div className="bg-[var(--vert)] px-6 py-5">
           <h1 className="grotesk text-[22px] font-bold text-[var(--header-texte)]">
-            Nouvel événement
+            {passe ? "Événement passé" : "Nouvel événement"}
           </h1>
           <p className="mt-1 text-[13px] text-[var(--header-nav)]">
-            Coût total à partager ou prix par personne, au choix. Heures de Paris.
+            {passe
+              ? "Une activité déjà jouée, pour en garder le résultat. Vous y serez inscrit·e ; ajoutez ensuite les autres joueurs puis saisissez le score. Heures de Paris."
+              : "Coût total à partager ou prix par personne, au choix. Heures de Paris."}
           </p>
         </div>
         <form action={formAction} className="flex flex-col gap-4 px-6 py-5">
+          {passe && <input type="hidden" name="passe" value="1" />}
           {state && !state.ok && (
             <Alert variant="destructive">
               <AlertDescription>{state.message}</AlertDescription>
@@ -95,7 +105,11 @@ export default function NewEventPage() {
             disabled={pending}
             className="grotesk h-11 w-full cursor-pointer rounded-full bg-[var(--vert)] text-[15px] font-bold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)] disabled:opacity-60"
           >
-            {pending ? "Création…" : "Créer l'événement"}
+            {pending
+              ? "Création…"
+              : passe
+                ? "Ajouter l'événement passé"
+                : "Créer l'événement"}
           </button>
         </form>
       </div>

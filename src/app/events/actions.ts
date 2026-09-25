@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createEventSchema,
+  createPastEventSchema,
   eventIdSchema,
   guestNameSchema,
   messageBodySchema,
@@ -72,7 +73,9 @@ export async function createEvent(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: "Vous devez être connecté." };
 
-  const parsed = createEventSchema.safeParse({
+  // Événement déjà joué, ajouté depuis l'onglet « Terminés ».
+  const passe = formData.get("passe") === "1";
+  const parsed = (passe ? createPastEventSchema : createEventSchema).safeParse({
     title: formData.get("title"),
     sport: formData.get("sport"),
     description: formData.get("description") ?? "",
@@ -106,6 +109,18 @@ export async function createEvent(
   if (error || !data) {
     console.error("createEvent :", error);
     return { ok: false, message: "La création a échoué. Réessayez." };
+  }
+
+  if (passe) {
+    // La RLS n'autorise l'inscription qu'à une activité à venir : le
+    // créateur est inscrit en service_role. C'est ce qui lui permet
+    // ensuite d'ajouter les autres joueurs et de saisir le score.
+    // Pas d'annonce Teams : il n'y a plus de place à proposer.
+    const { error: inscription } = await createAdminClient()
+      .from("registrations")
+      .insert({ event_id: data.id, user_id: user.id });
+    if (inscription) console.error("createEvent (inscription) :", inscription);
+    redirect(`/events/${data.id}`);
   }
 
   const { data: profile } = await supabase

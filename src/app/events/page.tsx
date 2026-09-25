@@ -451,10 +451,12 @@ export default function EventsPage({
           )}
         </div>
         <Link
-          href="/events/new"
+          href={actif === "termines" ? "/events/new?passe=1" : "/events/new"}
           className="grotesk h-10 rounded-full bg-[var(--vert)] px-5 text-sm leading-10 font-semibold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)]"
         >
-          + Créer un événement
+          {actif === "termines"
+            ? "+ Ajouter un événement passé"
+            : "+ Créer un événement"}
         </Link>
       </div>
 

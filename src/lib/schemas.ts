@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parisInputToDate } from "@/lib/format";
+import { DUREE_PAR_DEFAUT_MS } from "@/lib/cycle";
 
 // Schémas partagés client/serveur. Toute entrée utilisateur repasse par
 // ces schémas côté serveur, la validation client n'est que du confort.
@@ -137,6 +138,27 @@ export const createEventSchema = eventFieldsSchema
     path: ["startsAt"],
   })
   .refine(endsAfterStarts, endsAfterStartsError);
+
+// Activité déjà jouée, ajoutée depuis l'onglet « Terminés » pour en saisir
+// le résultat. Sans heure de fin, elle se termine au plus tard maintenant
+// (début + 2 h sinon) : elle est ainsi terminée dès sa création, et son
+// score peut être saisi aussitôt.
+export const createPastEventSchema = eventFieldsSchema
+  .refine((v) => v.startsAt.getTime() < Date.now(), {
+    message: "Un événement passé doit avoir commencé avant maintenant",
+    path: ["startsAt"],
+  })
+  .refine((v) => v.endsAt === null || v.endsAt.getTime() <= Date.now(), {
+    message: "La fin d'un événement passé ne peut pas être dans le futur",
+    path: ["endsAt"],
+  })
+  .refine(endsAfterStarts, endsAfterStartsError)
+  .transform((v) => ({
+    ...v,
+    endsAt:
+      v.endsAt ??
+      new Date(Math.min(v.startsAt.getTime() + DUREE_PAR_DEFAUT_MS, Date.now())),
+  }));
 
 export type CreateEventInput = z.input<typeof createEventSchema>;
 export type CreateEventParsed = z.output<typeof createEventSchema>;
