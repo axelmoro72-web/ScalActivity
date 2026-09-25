@@ -153,11 +153,19 @@ export const eventIdSchema = z.uuid("Identifiant d'événement invalide");
 
 // Invité ajouté à la main. La borne de 60 caractères double la contrainte
 // CHECK de la table ; le message d'erreur est plus clair ici.
+// Prénom et nom exigés : un invité apparaît au classement et dans
+// l'historique sous ce nom, qui l'identifie d'une activité à l'autre.
 export const guestNameSchema = z
   .string()
   .trim()
-  .min(1, "Nom requis")
-  .max(60, "Nom trop long (60 caractères maximum)");
+  .transform((n) => n.replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .min(1, "Nom requis")
+      .max(60, "Nom trop long (60 caractères maximum)")
+      .refine((n) => n.split(" ").length >= 2, "Indiquez le prénom et le nom"),
+  );
 
 export const registrationIdSchema = z.coerce
   .number({ error: "Inscription invalide" })
@@ -176,3 +184,34 @@ export const messageIdSchema = z.coerce
   .number({ error: "Message invalide" })
   .int("Message invalide")
   .positive("Message invalide");
+
+// ---------- résultats ----------
+// Forme des données seulement : les règles de score (set valide, 1v1 ou
+// 2v2…) sont dans src/lib/resultats.ts, appliquées par l'action serveur.
+
+const entier = (max: number) =>
+  z.number({ error: "Nombre attendu" }).int("Nombre entier attendu").min(0).max(max);
+
+export const setScoreSchema = z.object({
+  a: entier(99),
+  b: entier(99),
+  tb: z.tuple([entier(99), entier(99)]).nullable().optional(),
+  interrompu: z.boolean().optional(),
+});
+
+export const resultPlayerSchema = z
+  .object({
+    user_id: z.uuid().nullable(),
+    guest_name: z.string().trim().min(1).max(60).nullable(),
+    team: z.enum(["A", "B"]).nullable(),
+    catches: entier(999).nullable(),
+  })
+  .refine((p) => (p.user_id === null) !== (p.guest_name === null), {
+    error: "Joueur invalide",
+  });
+
+export const saveResultSchema = z.object({
+  eventId: eventIdSchema,
+  sets: z.array(setScoreSchema).max(50, "Trop de sets"),
+  players: z.array(resultPlayerSchema).min(1, "Aucun joueur").max(100),
+});

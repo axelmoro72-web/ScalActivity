@@ -176,3 +176,26 @@ export function dayName(local: string): string {
   if (!m) return "";
   return weekdayFormatter.format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])));
 }
+
+const jourMoisFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: PARIS,
+});
+
+/** "25/09" : date courte de la traçabilité des résultats. */
+export function jourMois(iso: string): string {
+  return jourMoisFormatter.format(new Date(iso));
+}
+
+const dateCourteFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: PARIS,
+});
+
+/** "12 sept. 2026" : dates de l'historique. */
+export function dateCourte(iso: string): string {
+  return dateCourteFormatter.format(new Date(iso));
+}

@@ -22,7 +22,13 @@ import {
   useMessages,
   useParticipants,
   useProfile,
+  useResultats,
 } from "@/lib/queries";
+import { modeScore } from "@/lib/activites";
+import { phase } from "@/lib/cycle";
+import { lienJoueur, resumeResultat, type Resultat } from "@/lib/classement";
+import { formatRang, rangsPeche } from "@/lib/resultats";
+import { ScoreDialog, Tracabilite } from "@/components/score-dialog";
 import {
   dayOfMonth,
   formatCents,
@@ -83,7 +89,15 @@ function ParticipantRow({
     >
       <AvatarInitials name={participant.display_name} highlight={isMe} />
       <span className={`text-sm ${isMe ? "grotesk font-semibold" : ""}`}>
-        {participant.display_name}
+        <Link
+          href={lienJoueur({
+            user_id: participant.user_id,
+            nom: participant.display_name,
+          })}
+          className="hover:underline"
+        >
+          {participant.display_name}
+        </Link>
         {isMe && (
           <span className="grotesk ml-1 text-xs font-medium text-[var(--lime-texte)]">
             (vous)
@@ -107,6 +121,131 @@ function ParticipantRow({
         >
           Retirer
         </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Résultat d'une activité classée terminée : score détaillé, traçabilité
+ * et, pour ses participants confirmés, saisie ou modification.
+ */
+function ResultCard({
+  eventId,
+  titre,
+  sport,
+  resultat,
+  confirmed,
+  canRecord,
+}: {
+  eventId: string;
+  titre: string;
+  sport: string;
+  resultat: Resultat | undefined;
+  confirmed: EventParticipant[];
+  canRecord: boolean;
+}) {
+  const mode = modeScore(sport);
+  if (!mode) return null;
+
+  return (
+    <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="grotesk text-[15px] font-semibold">Résultat</span>
+        {canRecord && (
+          <ScoreDialog
+            eventId={eventId}
+            titre={titre}
+            mode={mode}
+            participants={confirmed}
+            existant={resultat}
+          />
+        )}
+      </div>
+      {!resultat ? (
+        <p className="text-sm text-[var(--texte-2)]">
+          Score pas encore saisi
+          {canRecord ? "." : " — un participant peut le faire."}
+        </p>
+      ) : (
+        <>
+          <p className="grotesk text-sm font-semibold">{resumeResultat(resultat)}</p>
+          {mode === "raquette_sets" ? (
+            <div className="mt-2.5 overflow-x-auto">
+              <table className="border-separate border-spacing-x-1 text-sm">
+                <tbody>
+                  {(["A", "B"] as const).map((e) => (
+                    <tr key={e}>
+                      <td className="pr-3">
+                        <span className="grotesk font-bold">Équipe {e}</span>{" "}
+                        <span className="text-[var(--texte-2)]">
+                          {resultat.joueurs
+                            .filter((j) => j.team === e)
+                            .map((j, i) => (
+                              <span key={j.cle}>
+                                {i > 0 && " · "}
+                                <Link href={lienJoueur(j)} className="hover:underline">
+                                  {j.nom}
+                                </Link>
+                              </span>
+                            ))}
+                        </span>
+                      </td>
+                      {resultat.sets.map((s, i) => {
+                        const jeux = e === "A" ? s.a : s.b;
+                        const autre = e === "A" ? s.b : s.a;
+                        return (
+                          <td
+                            key={i}
+                            className={`grotesk w-9 rounded-md py-1 text-center tabular-nums ${
+                              !s.interrompu && jeux > autre
+                                ? "bg-[var(--lime-pale)] font-bold text-[var(--lime-texte)]"
+                                : "bg-background text-[var(--texte-2)]"
+                            }`}
+                          >
+                            {jeux}
+                            {s.tb && (
+                              <sup className="ml-px text-[9px]">
+                                {e === "A" ? s.tb[0] : s.tb[1]}
+                              </sup>
+                            )}
+                            {s.interrompu && "*"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {resultat.sets.some((s) => s.interrompu) && (
+                <p className="mt-1.5 text-xs text-[var(--texte-3)]">
+                  * set interrompu (fin du temps), non compté comme gagné
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-col gap-0.5">
+              {rangsPeche(
+                resultat.joueurs.map((j) => ({ ...j, prises: j.prises ?? 0 })),
+              ).map((j) => (
+                <div key={j.cle} className="flex items-center gap-3 px-1 py-1 text-sm">
+                  <span className="grotesk w-9 font-bold text-[var(--lime-texte)]">
+                    {formatRang(j.rang)}
+                  </span>
+                  <Link href={lienJoueur(j)} className="flex-1 hover:underline">
+                    {j.nom}
+                  </Link>
+                  <span className="grotesk font-semibold tabular-nums">
+                    {j.prises} 🐟
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-2.5">
+            <Tracabilite r={resultat} />
+          </div>
+        </>
       )}
     </div>
   );
@@ -266,6 +405,7 @@ export default function EventDetailPage({
   const { data: participants } = useParticipants(id);
   const { data: me } = useCurrentProfile();
   const { data: organizer } = useProfile(event?.created_by);
+  const { data: resultats } = useResultats([id]);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [now] = useState(() => Date.now());
@@ -342,6 +482,8 @@ export default function EventDetailPage({
     cancelMutation.isPending ||
     deleteMutation.isPending;
   const gaugeRatio = Math.min(event.registered_count / event.capacity, 1);
+  const termine = !cancelled && phase(event, new Date(now)) === "termine";
+  const canRecord = termine && !!mine?.is_confirmed;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -463,6 +605,17 @@ export default function EventDetailPage({
           </div>
         )}
 
+        {termine && (
+          <ResultCard
+            eventId={id}
+            titre={event.title}
+            sport={event.sport}
+            resultat={resultats?.[0]}
+            confirmed={confirmed}
+            canRecord={canRecord}
+          />
+        )}
+
         <div className="mt-3.5 rounded-2xl border border-[var(--border)] bg-card px-5 py-4.5">
           <div className="mb-3 flex items-center justify-between">
             <span className="grotesk text-[15px] font-semibold">
@@ -561,7 +714,7 @@ export default function EventDetailPage({
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 maxLength={60}
-                placeholder="Ajouter quelqu'un (nom libre)"
+                placeholder="Ajouter quelqu'un (Prénom Nom)"
                 aria-label="Nom du participant à ajouter"
                 className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--input)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--vert)]"
               />

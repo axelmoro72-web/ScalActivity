@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { DUREE_PAR_DEFAUT_MS } from "@/lib/cycle";
+import { grouperResultats } from "@/lib/classement";
 
 /** Utilisateur courant + son profil (rôle admin, nom affiché). */
 export function useCurrentProfile() {
@@ -25,7 +27,24 @@ export function useCurrentProfile() {
   });
 }
 
-/** Événements à venir (y compris annulés, affichés barrés). */
+/**
+ * Filtre PostgREST « terminé » / « pas terminé » : fin passée, ou début
+ * + 2 h sans fin (cf. src/lib/cycle.ts). Les horodatages ISO ne
+ * contiennent ni virgule ni parenthèse, ils passent tels quels dans or().
+ */
+function filtreFin(termine: boolean) {
+  const now = new Date();
+  const limiteDebut = new Date(now.getTime() - DUREE_PAR_DEFAUT_MS);
+  return termine
+    ? `ends_at.lte.${now.toISOString()},and(ends_at.is.null,starts_at.lte.${limiteDebut.toISOString()})`
+    : `ends_at.gt.${now.toISOString()},and(ends_at.is.null,starts_at.gt.${limiteDebut.toISOString()})`;
+}
+
+/**
+ * Événements à venir ou en cours (y compris annulés, affichés barrés).
+ * Une activité commencée reste listée jusqu'à sa fin, puis passe dans
+ * « Terminés ».
+ */
 export function useUpcomingEvents() {
   return useQuery({
     queryKey: ["events", "upcoming"],
@@ -34,10 +53,50 @@ export function useUpcomingEvents() {
       const { data, error } = await supabase
         .from("event_summary")
         .select("*")
-        .gte("starts_at", new Date().toISOString())
+        .or(filtreFin(false))
         .order("starts_at", { ascending: true });
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+/** Événements terminés, du plus récent au plus ancien (hors annulés). */
+export function useFinishedEvents() {
+  return useQuery({
+    queryKey: ["events", "finished"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("event_summary")
+        .select("*")
+        .eq("status", "open")
+        .or(filtreFin(true))
+        .order("starts_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/**
+ * Résultats saisis, regroupés par événement. Sans argument : tous
+ * (classement, profils) — volume d'une app interne, le calcul se fait
+ * côté client à partir des résultats bruts.
+ */
+export function useResultats(eventIds?: string[]) {
+  return useQuery({
+    queryKey: ["resultats", eventIds ?? "tous"],
+    enabled: eventIds === undefined || eventIds.length > 0,
+    queryFn: async () => {
+      const supabase = createClient();
+      let query = supabase.from("event_result_details").select("*");
+      if (eventIds) query = query.in("event_id", eventIds);
+      const { data, error } = await query.order("player_id", {
+        ascending: true,
+      });
+      if (error) throw error;
+      return grouperResultats(data);
     },
   });
 }

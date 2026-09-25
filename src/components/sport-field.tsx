@@ -12,9 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ACTIVITES } from "@/lib/activites";
 
-export const RACKET_SPORTS = ["Padel", "Tennis", "Badminton", "Squash"];
-export const OTHER_ACTIVITIES = ["Running", "Afterwork"];
+// La liste vit dans src/lib/activites.ts, avec le mode de score de chacune.
+export const RACKET_SPORTS = ACTIVITES.filter((a) => a.groupe === "raquette").map(
+  (a) => a.nom,
+);
+export const OTHER_ACTIVITIES = ACTIVITES.filter((a) => a.groupe === "autre").map(
+  (a) => a.nom,
+);
 const SPORTS = [...RACKET_SPORTS, ...OTHER_ACTIVITIES];
 
 const OTHER = "__autre__";
@@ -88,7 +94,7 @@ export function SportField({
             setCustom(e.target.value);
             announce(e.target.value);
           }}
-          placeholder="Foot, running, bowling…"
+          placeholder="Foot, bowling, escalade…"
           maxLength={100}
           required
           autoFocus={!defaultValue}

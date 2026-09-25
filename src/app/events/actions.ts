@@ -10,8 +10,14 @@ import {
   messageBodySchema,
   messageIdSchema,
   registrationIdSchema,
+  saveResultSchema,
   updateEventSchema,
 } from "@/lib/schemas";
+import { modeScore } from "@/lib/activites";
+import { phase } from "@/lib/cycle";
+import { cleJoueur } from "@/lib/classement";
+import { erreurResultat, type SetScore } from "@/lib/resultats";
+import type { ResultPlayerInput } from "@/lib/database.types";
 import { formatCents, formatDate } from "@/lib/format";
 import { sendTeamsNotification, siteUrl } from "@/lib/teams";
 
@@ -668,4 +674,125 @@ export async function removeParticipant(
   }
 
   return { ok: true, message: "Participant retiré." };
+}
+
+/** Codes levés par la base (triggers, RPC) → message lisible. */
+const ERREURS_RESULTAT: Record<string, string> = {
+  not_allowed:
+    "Seuls les participants confirmés d'une activité terminée peuvent saisir le résultat.",
+  set_invalide: "Un set terminé se joue en 6 jeux avec 2 d'écart, 7-5 ou 7-6.",
+  aucun_set: "Au moins un set est requis.",
+  interruption_hors_dernier_set: "Seul le dernier set peut être interrompu.",
+  tie_break_invalide: "Tie-break invalide.",
+  equipes_invalides: "Format attendu : 1 contre 1 ou 2 contre 2.",
+  joueur_non_inscrit: "Un des joueurs n'est pas inscrit à cette activité.",
+  aucun_pecheur: "Saisissez les prises d'au moins un participant.",
+};
+
+/**
+ * Saisie ou modification du résultat d'une activité classée terminée,
+ * par n'importe lequel de ses participants confirmés.
+ *
+ * Toutes les règles sont vérifiées ici avant d'écrire, pour renvoyer un
+ * message précis ; la base les revérifie (RLS, triggers) puisque l'API
+ * reste joignable directement.
+ */
+export async function saveResult(input: {
+  eventId: string;
+  sets: SetScore[];
+  players: ResultPlayerInput[];
+}): Promise<ActionState> {
+  const parsed = saveResultSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0].message };
+  }
+  const { eventId, players } = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  const [{ data: event }, { data: participants }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("sport, status, starts_at, ends_at")
+      .eq("id", eventId)
+      .single(),
+    supabase
+      .from("event_participants")
+      .select("user_id, display_name, is_confirmed")
+      .eq("event_id", eventId)
+      .eq("is_confirmed", true),
+  ]);
+  if (!event) return { ok: false, message: "Événement introuvable." };
+  if (event.status !== "open") {
+    return { ok: false, message: "Cette activité est annulée." };
+  }
+  const mode = modeScore(event.sport);
+  if (!mode) {
+    return { ok: false, message: "Cette activité n'est pas classée." };
+  }
+  const etape = phase(event, new Date());
+  if (etape === "a_venir" || etape === "en_cours") {
+    return { ok: false, message: "L'activité n'est pas encore terminée." };
+  }
+
+  const inscrits = participants ?? [];
+  if (!inscrits.some((p) => p.user_id === user.id)) {
+    return {
+      ok: false,
+      message: "Seuls les participants inscrits peuvent saisir le résultat.",
+    };
+  }
+  const clesInscrits = new Set(
+    inscrits.map((p) =>
+      cleJoueur({
+        user_id: p.user_id,
+        guest_name: p.user_id ? null : p.display_name,
+      }),
+    ),
+  );
+  const joueurs = players.map((p) => ({
+    ...p,
+    cle: cleJoueur(p),
+    prises: p.catches,
+  }));
+  const intrus = joueurs.find((j) => !clesInscrits.has(j.cle));
+  if (intrus) {
+    return {
+      ok: false,
+      message: `${intrus.guest_name ?? "Un joueur"} n'est pas inscrit·e à cette activité.`,
+    };
+  }
+
+  const sets: SetScore[] =
+    mode === "peche_prises"
+      ? []
+      : parsed.data.sets.map((s) => ({
+          a: s.a,
+          b: s.b,
+          tb: s.tb ?? null,
+          interrompu: s.interrompu ?? false,
+        }));
+  const erreur = erreurResultat(mode, sets, joueurs);
+  if (erreur) return { ok: false, message: erreur };
+
+  const { error } = await supabase.rpc("save_event_result", {
+    p_event_id: eventId,
+    p_mode: mode,
+    p_sets: sets,
+    p_players: players,
+  });
+  if (error) {
+    const code = Object.keys(ERREURS_RESULTAT).find((c) =>
+      error.message.includes(c),
+    );
+    if (code) return { ok: false, message: ERREURS_RESULTAT[code] };
+    console.error("save_event_result :", error);
+    return { ok: false, message: "L'enregistrement a échoué. Réessayez." };
+  }
+
+  return { ok: true, message: "Résultat enregistré." };
 }

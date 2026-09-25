@@ -1,17 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deleteEvent, registerToEvent } from "./actions";
 import {
   useCurrentProfile,
+  useFinishedEvents,
   useManyParticipants,
+  useResultats,
   useUpcomingEvents,
 } from "@/lib/queries";
-import { dayOfMonth, formatCents, monthShort, timeRange } from "@/lib/format";
+import {
+  dayOfMonth,
+  formatCents,
+  jourMois,
+  monthShort,
+  timeRange,
+} from "@/lib/format";
+import { modeScore } from "@/lib/activites";
+import { resumeResultat, type Resultat } from "@/lib/classement";
 import { AvatarInitials } from "@/components/avatar-initials";
+import { ScoreDialog } from "@/components/score-dialog";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +93,11 @@ function EventCard({
   const full = event.spots_left === 0;
   const myUserId = me?.id;
   const mine = participants.find((p) => p.user_id === myUserId);
+  // Une activité commencée reste dans « À venir » jusqu'à sa fin, mais on
+  // ne peut plus s'y inscrire (la RLS le refuse).
+  const [started] = useState(
+    () => new Date(event.starts_at).getTime() <= Date.now(),
+  );
 
   const registerMutation = useMutation({
     mutationFn: () => registerToEvent(event.id),
@@ -214,6 +230,10 @@ function EventCard({
           <span className="grotesk rounded-full bg-[var(--lime-pale)] px-4 py-1.5 text-[13px] font-bold text-[var(--lime-texte)]">
             {mine.is_confirmed ? "✓ Inscrit·e" : "En attente"}
           </span>
+        ) : started ? (
+          <span className="grotesk rounded-full bg-[var(--vert)] px-4 py-1.5 text-[13px] font-bold text-[var(--lime)]">
+            En cours
+          </span>
         ) : (
           <button
             disabled={registerMutation.isPending}
@@ -235,11 +255,178 @@ function EventCard({
   );
 }
 
-export default function EventsPage() {
+/**
+ * Carte d'un événement terminé : son résultat s'il est saisi, et le
+ * bouton de saisie pour ses participants confirmés si l'activité est
+ * classée. Pas de lien sur toute la carte, contrairement aux cartes à
+ * venir : la modale de saisie s'ouvre depuis la carte, et un clic dans
+ * la modale remonterait jusqu'au lien (les portails React propagent les
+ * événements à leurs ancêtres).
+ */
+function FinishedCard({
+  event,
+  participants,
+  resultat,
+  me,
+}: {
+  event: EventSummary;
+  participants: EventParticipant[];
+  resultat: Resultat | undefined;
+  me: Profile | null | undefined;
+}) {
+  const mode = modeScore(event.sport);
+  const confirmes = participants.filter((p) => p.is_confirmed);
+  const participe = confirmes.some((p) => p.user_id === me?.id);
+
+  return (
+    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-[var(--border)] bg-card p-4 sm:gap-5 sm:px-5">
+      <DateBlock event={event} muted={!mode} />
+      <div className="min-w-0 flex-1 basis-56">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/events/${event.id}`}
+            className="grotesk text-[17px] font-semibold hover:underline"
+          >
+            {event.title}
+          </Link>
+          <span className="grotesk rounded-full bg-[var(--lime-pale)] px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.05em] uppercase text-[var(--lime-texte)]">
+            {event.sport}
+          </span>
+        </div>
+        <p className="mt-0.5 text-[13px] text-[var(--texte-2)]">
+          {timeRange(event.starts_at, event.ends_at)}
+          {event.location ? ` · ${event.location}` : ""} · {confirmes.length}{" "}
+          participant{confirmes.length > 1 ? "s" : ""}
+        </p>
+        {resultat ? (
+          <>
+            <p className="grotesk mt-1.5 text-sm font-semibold">
+              {resumeResultat(resultat)}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--texte-3)]">
+              Saisi par {resultat.saisi_par ?? "?"} le {jourMois(resultat.saisi_le)}
+              {resultat.modifie_le &&
+                ` · modifié par ${resultat.modifie_par ?? "?"} le ${jourMois(resultat.modifie_le)}`}
+            </p>
+          </>
+        ) : mode ? (
+          <p className="mt-1.5 text-xs text-[var(--texte-3)]">
+            Score pas encore saisi
+          </p>
+        ) : null}
+      </div>
+      <div className="ml-auto flex flex-none items-center gap-3">
+        {mode && participe ? (
+          <ScoreDialog
+            eventId={event.id}
+            titre={event.title}
+            mode={mode}
+            participants={confirmes}
+            existant={resultat}
+          />
+        ) : (
+          <span className="grotesk rounded-full border border-[var(--input)] px-3 py-1 text-[11px] font-semibold tracking-[0.04em] uppercase text-[var(--texte-3)]">
+            {resultat ? "Résultat saisi" : "Terminé"}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type Onglet = "a_venir" | "termines";
+
+function Onglets({ actif }: { actif: Onglet }) {
+  const onglet = (cle: Onglet, libelle: string, href: string) => (
+    <Link
+      href={href}
+      aria-current={actif === cle ? "page" : undefined}
+      className={`grotesk h-9 rounded-full px-4 text-sm leading-9 font-semibold transition-colors ${
+        actif === cle
+          ? "bg-[var(--vert)] text-[var(--lime)]"
+          : "text-[var(--texte-2)] hover:text-[var(--vert)]"
+      }`}
+    >
+      {libelle}
+    </Link>
+  );
+  return (
+    <nav className="mt-4 flex w-fit gap-1 rounded-full border border-[var(--border)] bg-card p-1">
+      {onglet("a_venir", "À venir", "/events")}
+      {onglet("termines", "Terminés", "/events?onglet=termines")}
+    </nav>
+  );
+}
+
+function Upcoming({ me }: { me: Profile | null | undefined }) {
   const { data: events, isPending, error } = useUpcomingEvents();
-  const { data: me } = useCurrentProfile();
   const eventIds = useMemo(() => (events ?? []).map((e) => e.id), [events]);
   const { data: allParticipants } = useManyParticipants(eventIds);
+
+  return (
+    <div className="mt-5 flex flex-col gap-3">
+      {isPending && <p className="text-[var(--texte-2)]">Chargement…</p>}
+      {error && (
+        <p className="text-destructive">Impossible de charger les événements.</p>
+      )}
+      {events && events.length === 0 && (
+        <p className="text-[var(--texte-2)]">
+          Aucun événement à venir. Lancez le premier !
+        </p>
+      )}
+      {events?.map((e) => (
+        <EventCard
+          key={e.id}
+          event={e}
+          participants={(allParticipants ?? []).filter(
+            (p) => p.event_id === e.id,
+          )}
+          me={me}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Finished({ me }: { me: Profile | null | undefined }) {
+  const { data: events, isPending, error } = useFinishedEvents();
+  const eventIds = useMemo(() => (events ?? []).map((e) => e.id), [events]);
+  const { data: allParticipants } = useManyParticipants(eventIds);
+  const { data: resultats } = useResultats(eventIds);
+
+  return (
+    <div className="mt-5 flex flex-col gap-3">
+      {isPending && <p className="text-[var(--texte-2)]">Chargement…</p>}
+      {error && (
+        <p className="text-destructive">Impossible de charger les événements.</p>
+      )}
+      {events && events.length === 0 && (
+        <p className="text-[var(--texte-2)]">Aucun événement terminé.</p>
+      )}
+      {events?.map((e) => (
+        <FinishedCard
+          key={e.id}
+          event={e}
+          participants={(allParticipants ?? []).filter(
+            (p) => p.event_id === e.id,
+          )}
+          resultat={resultats?.find((r) => r.event_id === e.id)}
+          me={me}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onglet?: string }>;
+}) {
+  const { onglet } = use(searchParams);
+  const actif: Onglet = onglet === "termines" ? "termines" : "a_venir";
+  const { data: events } = useUpcomingEvents();
+  const { data: me } = useCurrentProfile();
 
   const open = (events ?? []).filter((e) => e.status === "open");
   const withSpots = open.filter((e) => e.spots_left > 0).length;
@@ -249,12 +436,17 @@ export default function EventsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="grotesk text-3xl leading-tight font-bold tracking-[-0.03em]">
-            À venir
+            {actif === "termines" ? "Terminés" : "À venir"}
           </h1>
-          {events && (
+          {actif === "a_venir" && events && (
             <p className="mt-1 text-[13px] text-[var(--texte-2)]">
               {open.length} événement{open.length > 1 ? "s" : ""} · {withSpots}{" "}
               où il reste de la place
+            </p>
+          )}
+          {actif === "termines" && (
+            <p className="mt-1 text-[13px] text-[var(--texte-2)]">
+              Résultats des activités passées
             </p>
           )}
         </div>
@@ -266,31 +458,8 @@ export default function EventsPage() {
         </Link>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3">
-        {isPending && (
-          <p className="text-[var(--texte-2)]">Chargement…</p>
-        )}
-        {error && (
-          <p className="text-destructive">
-            Impossible de charger les événements.
-          </p>
-        )}
-        {events && events.length === 0 && (
-          <p className="text-[var(--texte-2)]">
-            Aucun événement à venir. Lancez le premier !
-          </p>
-        )}
-        {events?.map((e) => (
-          <EventCard
-            key={e.id}
-            event={e}
-            participants={(allParticipants ?? []).filter(
-              (p) => p.event_id === e.id,
-            )}
-            me={me}
-          />
-        ))}
-      </div>
+      <Onglets actif={actif} />
+      {actif === "termines" ? <Finished me={me} /> : <Upcoming me={me} />}
     </main>
   );
 }

@@ -6,6 +6,9 @@
 // d'index implicite et ne satisfont pas `Record<string, unknown>` exigé
 // par les génériques de supabase-js.
 
+import type { ModeScore } from "./activites";
+import type { Equipe, SetScore } from "./resultats";
+
 export type EventStatus = "open" | "cancelled";
 export type ProfileRole = "member" | "admin";
 
@@ -80,6 +83,63 @@ export type PromotedUser = {
   display_name: string;
 };
 
+/** Table event_results : un résultat par événement terminé. */
+export type EventResult = {
+  event_id: string;
+  mode: ModeScore;
+  sets: SetScore[];
+  recorded_by: string | null;
+  recorded_at: string;
+  updated_by: string | null;
+  updated_at: string | null;
+};
+
+/** Table event_result_players : un membre ou un invité, dans une équipe ou avec ses prises. */
+export type EventResultPlayer = {
+  id: number;
+  event_id: string;
+  user_id: string | null;
+  guest_name: string | null;
+  team: Equipe | null;
+  catches: number | null;
+};
+
+/**
+ * Vue event_result_details : une ligne par joueur, avec l'événement et
+ * les noms de qui a saisi / modifié. player_id est nul pour un résultat
+ * sans joueur (ne devrait pas exister, la base l'interdit).
+ */
+export type EventResultDetail = {
+  event_id: string;
+  title: string;
+  sport: string;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  mode: ModeScore;
+  sets: SetScore[];
+  recorded_by: string | null;
+  recorded_by_name: string | null;
+  recorded_at: string;
+  updated_by: string | null;
+  updated_by_name: string | null;
+  updated_at: string | null;
+  player_id: number | null;
+  user_id: string | null;
+  guest_name: string | null;
+  display_name: string | null;
+  team: Equipe | null;
+  catches: number | null;
+};
+
+/** Joueur transmis à la RPC save_event_result. */
+export type ResultPlayerInput = {
+  user_id: string | null;
+  guest_name: string | null;
+  team: Equipe | null;
+  catches: number | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -131,16 +191,40 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      // Écriture uniquement via la RPC save_event_result (transaction
+      // unique) ; les colonnes de traçabilité sont posées par trigger.
+      event_results: {
+        Row: EventResult;
+        Insert: { event_id: string; mode: ModeScore; sets: SetScore[] };
+        Update: { mode?: ModeScore; sets?: SetScore[] };
+        Relationships: [];
+      };
+      event_result_players: {
+        Row: EventResultPlayer;
+        Insert: Omit<EventResultPlayer, "id">;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: {
       event_summary: { Row: EventSummary; Relationships: [] };
       event_participants: { Row: EventParticipant; Relationships: [] };
       event_message_list: { Row: EventMessage; Relationships: [] };
+      event_result_details: { Row: EventResultDetail; Relationships: [] };
     };
     Functions: {
       cancel_registration: {
         Args: { p_event_id: string };
         Returns: PromotedUser[];
+      };
+      save_event_result: {
+        Args: {
+          p_event_id: string;
+          p_mode: ModeScore;
+          p_sets: SetScore[];
+          p_players: ResultPlayerInput[];
+        };
+        Returns: undefined;
       };
       remove_participant: {
         Args: { p_event_id: string; p_registration_id: number };
