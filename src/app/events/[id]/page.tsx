@@ -6,11 +6,13 @@ import { use, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  addGuest,
   cancelEvent,
   deleteEvent,
   deleteMessage,
   postMessage,
   registerToEvent,
+  removeParticipant,
   unregisterFromEvent,
   type ActionState,
 } from "../actions";
@@ -65,13 +67,17 @@ function StatCard({
 function ParticipantRow({
   participant,
   isMe,
+  onRemove,
+  removing,
 }: {
   participant: EventParticipant;
   isMe: boolean;
+  onRemove?: () => void;
+  removing?: boolean;
 }) {
   return (
     <div
-      className={`flex items-center gap-3 rounded-[10px] px-2.5 py-2 ${
+      className={`group flex items-center gap-3 rounded-[10px] px-2.5 py-2 ${
         isMe ? "bg-[var(--lime-fond)]" : "hover:bg-background"
       }`}
     >
@@ -83,10 +89,25 @@ function ParticipantRow({
             (vous)
           </span>
         )}
+        {participant.is_guest && (
+          <span className="grotesk ml-1.5 rounded-full border border-[var(--input)] px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] uppercase text-[var(--texte-3)]">
+            invité·e
+          </span>
+        )}
       </span>
       <span className="ml-auto text-xs text-[var(--texte-3)]">
         inscrit·e {registeredOn(participant.registered_at)}
       </span>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          disabled={removing}
+          aria-label={`Retirer ${participant.display_name}`}
+          className="grotesk cursor-pointer text-xs font-semibold text-[var(--texte-3)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--rouge)] focus-visible:opacity-100 disabled:opacity-40"
+        >
+          Retirer
+        </button>
+      )}
     </div>
   );
 }
@@ -262,6 +283,19 @@ export default function EventDetailPage({
   });
   const unregisterMutation = useMutation({
     mutationFn: () => unregisterFromEvent(id),
+    onSuccess: onSettled,
+  });
+  const [guestName, setGuestName] = useState("");
+  const addGuestMutation = useMutation({
+    mutationFn: (nom: string) => addGuest(id, nom),
+    onSuccess: (state) => {
+      if (state?.ok) setGuestName("");
+      onSettled(state);
+    },
+  });
+  const removeMutation = useMutation({
+    mutationFn: (registrationId: number) =>
+      removeParticipant(id, registrationId),
     onSuccess: onSettled,
   });
   const cancelMutation = useMutation({
@@ -449,6 +483,12 @@ export default function EventDetailPage({
                   key={p.id}
                   participant={p}
                   isMe={p.user_id === me?.id}
+                  onRemove={
+                    canManage
+                      ? () => removeMutation.mutate(p.id)
+                      : undefined
+                  }
+                  removing={removeMutation.isPending}
                 />
               ))}
             </div>
@@ -482,14 +522,63 @@ export default function EventDetailPage({
                           (vous)
                         </span>
                       )}
+                      {p.is_guest && (
+                        <span className="grotesk ml-1.5 rounded-full border border-[var(--input)] px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.04em] uppercase text-[var(--texte-3)]">
+                          invité·e
+                        </span>
+                      )}
                     </span>
                     <span className="grotesk ml-auto rounded-full border border-[var(--input)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--texte-2)]">
                       position {p.position - event.capacity}
                     </span>
+                    {canManage && (
+                      <button
+                        onClick={() => removeMutation.mutate(p.id)}
+                        disabled={removeMutation.isPending}
+                        aria-label={`Retirer ${p.display_name}`}
+                        className="grotesk cursor-pointer text-xs font-semibold text-[var(--texte-3)] transition-colors hover:text-[var(--rouge)] disabled:opacity-40"
+                      >
+                        Retirer
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </>
+          )}
+
+          {canManage && !past && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const nom = guestName.trim();
+                if (nom.length === 0 || addGuestMutation.isPending) return;
+                addGuestMutation.mutate(nom);
+              }}
+              className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-[var(--border)] pt-3.5"
+            >
+              <input
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                maxLength={60}
+                placeholder="Ajouter quelqu'un (nom libre)"
+                aria-label="Nom du participant à ajouter"
+                className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--input)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--vert)]"
+              />
+              <button
+                type="submit"
+                disabled={
+                  guestName.trim().length === 0 || addGuestMutation.isPending
+                }
+                className="grotesk h-9 flex-none cursor-pointer rounded-full bg-[var(--vert)] px-4 text-[13px] font-bold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)] disabled:opacity-50"
+              >
+                {addGuestMutation.isPending ? "Ajout…" : "Ajouter"}
+              </button>
+              <p className="w-full text-xs text-[var(--texte-3)]">
+                Pour un invité sans compte, ou un collègue qui vous a répondu
+                de vive voix. Il ne recevra pas de notification.
+              </p>
+            </form>
           )}
         </div>
 

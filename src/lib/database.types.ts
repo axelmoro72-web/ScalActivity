@@ -35,7 +35,10 @@ export type Event = {
 export type Registration = {
   id: number;
   event_id: string;
-  user_id: string;
+  /** Nul pour un invité ajouté à la main, qui n'a pas de compte. */
+  user_id: string | null;
+  /** Renseigné pour un invité seulement : l'un ou l'autre, jamais les deux. */
+  guest_name: string | null;
   registered_at: string;
   cancelled_at: string | null;
 };
@@ -61,16 +64,19 @@ export type EventMessage = {
 export type EventParticipant = {
   id: number;
   event_id: string;
-  user_id: string;
+  user_id: string | null;
   registered_at: string;
+  /** Nom du profil pour un membre, nom libre pour un invité. */
   display_name: string;
+  is_guest: boolean;
   position: number;
   is_confirmed: boolean;
 };
 
 /** Retour de la RPC cancel_registration : les personnes promues en confirmé. */
 export type PromotedUser = {
-  user_id: string;
+  /** Nul quand la personne promue est un invité sans compte. */
+  user_id: string | null;
   display_name: string;
 };
 
@@ -105,7 +111,14 @@ export type Database = {
         Row: Registration;
         // Grants par colonne : seules event_id/user_id sont insérables,
         // seul cancelled_at est modifiable.
-        Insert: { event_id: string; user_id: string };
+        // guest_name n'est pas insérable par `authenticated` (grant par
+        // colonne) : seules les actions serveur, en service_role, ajoutent
+        // un invité — après avoir vérifié qui le demande.
+        Insert: {
+          event_id: string;
+          user_id?: string | null;
+          guest_name?: string | null;
+        };
         Update: { cancelled_at?: string | null };
         Relationships: [];
       };
@@ -127,6 +140,10 @@ export type Database = {
     Functions: {
       cancel_registration: {
         Args: { p_event_id: string };
+        Returns: PromotedUser[];
+      };
+      remove_participant: {
+        Args: { p_event_id: string; p_registration_id: number };
         Returns: PromotedUser[];
       };
       update_event: {

@@ -151,6 +151,19 @@ export const updateEventSchema = eventFieldsSchema.refine(
 
 export const eventIdSchema = z.uuid("Identifiant d'événement invalide");
 
+// Invité ajouté à la main. La borne de 60 caractères double la contrainte
+// CHECK de la table ; le message d'erreur est plus clair ici.
+export const guestNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Nom requis")
+  .max(60, "Nom trop long (60 caractères maximum)");
+
+export const registrationIdSchema = z.coerce
+  .number({ error: "Inscription invalide" })
+  .int("Inscription invalide")
+  .positive("Inscription invalide");
+
 // Fil de discussion. La limite de 2000 caractères double la contrainte
 // CHECK de la table : le message d'erreur est plus clair ici.
 export const messageBodySchema = z

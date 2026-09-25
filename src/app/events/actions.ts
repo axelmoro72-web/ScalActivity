@@ -2,11 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createEventSchema,
   eventIdSchema,
+  guestNameSchema,
   messageBodySchema,
   messageIdSchema,
+  registrationIdSchema,
   updateEventSchema,
 } from "@/lib/schemas";
 import { formatCents, formatDate } from "@/lib/format";
@@ -496,4 +499,173 @@ export async function deleteMessage(messageId: number): Promise<ActionState> {
     };
   }
   return { ok: true, message: "Message supprimé." };
+}
+
+
+/**
+ * Droit d'organisation sur une activité : son créateur, ou un admin.
+ *
+ * Les actions qui suivent écrivent avec le client service_role, qui
+ * contourne la RLS — c'est donc ici, et nulle part ailleurs, que se
+ * joue l'autorisation. La lecture passe volontairement par le client de
+ * l'appelant : son propre rôle lui est lisible, pas modifiable.
+ */
+async function assertPeutOrganiser(eventId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false as const, erreur: "Vous devez être connecté." };
+  }
+
+  const [{ data: event }, { data: profile }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("title, status, starts_at, created_by")
+      .eq("id", eventId)
+      .single(),
+    supabase.from("profiles").select("display_name, role").eq("id", user.id).single(),
+  ]);
+
+  if (!event) {
+    return { ok: false as const, erreur: "Événement introuvable." };
+  }
+  if (event.created_by !== user.id && profile?.role !== "admin") {
+    return {
+      ok: false as const,
+      erreur:
+        "Seul le créateur de l'activité ou un admin peut gérer ses participants.",
+    };
+  }
+  return { ok: true as const, user, event, profile };
+}
+
+/**
+ * Ajout d'un participant à la main, sous un nom libre.
+ *
+ * Il n'a pas de compte : le domaine @scalian.com étant exigé à
+ * l'inscription, un invité extérieur ne peut pas en avoir. La ligne
+ * porte donc guest_name au lieu de user_id.
+ *
+ * Aucune promotion à détecter : l'inscription s'ajoute en fin de file,
+ * elle ne change le statut de personne d'autre.
+ */
+export async function addGuest(
+  eventId: string,
+  guestName: string,
+): Promise<ActionState> {
+  const parsedId = eventIdSchema.safeParse(eventId);
+  if (!parsedId.success) {
+    return { ok: false, message: "Événement invalide." };
+  }
+  const parsedName = guestNameSchema.safeParse(guestName);
+  if (!parsedName.success) {
+    return { ok: false, message: parsedName.error.issues[0].message };
+  }
+
+  const acces = await assertPeutOrganiser(parsedId.data);
+  if (!acces.ok) return { ok: false, message: acces.erreur };
+
+  // Le client service_role ne repasse pas par la RLS, qui refusait déjà
+  // toute inscription sur une activité annulée ou passée : on le
+  // revérifie ici, faute de quoi la règle disparaîtrait par cette porte.
+  if (acces.event.status !== "open") {
+    return { ok: false, message: "Cette activité est annulée." };
+  }
+  if (new Date(acces.event.starts_at).getTime() < Date.now()) {
+    return { ok: false, message: "Cette activité est déjà passée." };
+  }
+
+  const { error } = await createAdminClient()
+    .from("registrations")
+    .insert({ event_id: parsedId.data, guest_name: parsedName.data });
+
+  if (error) {
+    console.error("addGuest :", error);
+    return { ok: false, message: "L'ajout a échoué. Réessayez." };
+  }
+
+  const { data: summary } = await createAdminClient()
+    .from("event_summary")
+    .select("title, capacity, registered_count, spots_left")
+    .eq("id", parsedId.data)
+    .single();
+  if (summary) {
+    await sendTeamsNotification(
+      parsedId.data,
+      `➕ ${parsedName.data} est ajouté·e à « ${summary.title} »`,
+      [
+        fillLine(summary),
+        acces.profile ? `Ajouté·e par ${acces.profile.display_name}.` : "",
+      ].filter(Boolean),
+      eventLink(parsedId.data, "Voir l'activité"),
+    );
+  }
+
+  return { ok: true, message: `${parsedName.data} a été ajouté·e.` };
+}
+
+/**
+ * Retrait d'un participant par l'organisateur. Passe par la RPC
+ * remove_participant : retirer quelqu'un libère une place et promeut le
+ * suivant, promotion qu'il faut détecter dans la même transaction —
+ * comme à la désinscription.
+ */
+export async function removeParticipant(
+  eventId: string,
+  registrationId: number,
+): Promise<ActionState> {
+  const parsedId = eventIdSchema.safeParse(eventId);
+  if (!parsedId.success) {
+    return { ok: false, message: "Événement invalide." };
+  }
+  const parsedRegistration = registrationIdSchema.safeParse(registrationId);
+  if (!parsedRegistration.success) {
+    return { ok: false, message: "Inscription invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Vous devez être connecté." };
+
+  // L'autorisation est vérifiée par la fonction SQL elle-même.
+  const { data: promoted, error } = await supabase.rpc("remove_participant", {
+    p_event_id: parsedId.data,
+    p_registration_id: parsedRegistration.data,
+  });
+
+  if (error) {
+    if (error.message.includes("not_allowed")) {
+      return {
+        ok: false,
+        message:
+          "Seul le créateur de l'activité ou un admin peut retirer un participant.",
+      };
+    }
+    if (error.message.includes("not_registered")) {
+      return { ok: false, message: "Cette personne n'est plus inscrite." };
+    }
+    console.error("remove_participant :", error);
+    return { ok: false, message: "Le retrait a échoué. Réessayez." };
+  }
+
+  if (promoted && promoted.length > 0) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("title, starts_at")
+      .eq("id", parsedId.data)
+      .single();
+    for (const p of promoted) {
+      await sendTeamsNotification(parsedId.data, "Une place s'est libérée 🎉", [
+        event
+          ? `**${p.display_name}** passe de la liste d'attente à confirmé pour « ${event.title} » (${formatDate(event.starts_at)}).`
+          : `**${p.display_name}** passe de la liste d'attente à confirmé.`,
+      ]);
+    }
+  }
+
+  return { ok: true, message: "Participant retiré." };
 }
