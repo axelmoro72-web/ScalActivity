@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -509,14 +510,17 @@ export async function deleteMessage(messageId: number): Promise<ActionState> {
 
 
 /**
- * Droit d'organisation sur une activité : son créateur, ou un admin.
+ * Droit d'ajouter quelqu'un à une activité : son créateur, un admin, ou
+ * n'importe quel inscrit (confirmé ou en liste d'attente) — c'est souvent
+ * un participant qui sait qui est venu jouer.
  *
- * Les actions qui suivent écrivent avec le client service_role, qui
- * contourne la RLS — c'est donc ici, et nulle part ailleurs, que se
- * joue l'autorisation. La lecture passe volontairement par le client de
- * l'appelant : son propre rôle lui est lisible, pas modifiable.
+ * L'ajout écrit avec le client service_role, qui contourne la RLS (elle
+ * n'autorise chacun qu'à s'inscrire lui-même) — c'est donc ici, et nulle
+ * part ailleurs, que se joue l'autorisation. La lecture passe
+ * volontairement par le client de l'appelant : son propre rôle lui est
+ * lisible, pas modifiable.
  */
-async function assertPeutOrganiser(eventId: string) {
+async function assertPeutAjouter(eventId: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -525,75 +529,119 @@ async function assertPeutOrganiser(eventId: string) {
     return { ok: false as const, erreur: "Vous devez être connecté." };
   }
 
-  const [{ data: event }, { data: profile }] = await Promise.all([
-    supabase
-      .from("events")
-      .select("title, status, starts_at, created_by")
-      .eq("id", eventId)
-      .single(),
-    supabase.from("profiles").select("display_name, role").eq("id", user.id).single(),
-  ]);
+  const [{ data: event }, { data: profile }, { data: inscription }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select("title, status, starts_at, created_by")
+        .eq("id", eventId)
+        .single(),
+      supabase
+        .from("profiles")
+        .select("display_name, role")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("registrations")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .is("cancelled_at", null)
+        .maybeSingle(),
+    ]);
 
   if (!event) {
     return { ok: false as const, erreur: "Événement introuvable." };
   }
-  if (event.created_by !== user.id && profile?.role !== "admin") {
+  if (
+    event.created_by !== user.id &&
+    profile?.role !== "admin" &&
+    !inscription
+  ) {
     return {
       ok: false as const,
       erreur:
-        "Seul le créateur de l'activité ou un admin peut gérer ses participants.",
+        "Seuls les inscrits, l'organisateur ou un admin peuvent ajouter un participant.",
     };
   }
   return { ok: true as const, user, event, profile };
 }
 
 /**
- * Ajout d'un participant à la main, sous un nom libre.
+ * Ajout d'un participant à la main, par un inscrit ou l'organisateur :
  *
- * Il n'a pas de compte : le domaine @scalian.com étant exigé à
- * l'inscription, un invité extérieur ne peut pas en avoir. La ligne
- * porte donc guest_name au lieu de user_id.
+ *  - un membre du site, choisi dans la liste : inscription à son nom
+ *    (user_id), ses points iront sur son profil ;
+ *  - un invité, sous un nom libre « Prénom Nom » : il n'a pas de compte,
+ *    la ligne porte guest_name au lieu de user_id.
+ *
+ * Aussi après le début de l'activité, pour régulariser quelqu'un qui a
+ * joué sans s'être inscrit et pouvoir saisir son score.
  *
  * Aucune promotion à détecter : l'inscription s'ajoute en fin de file,
  * elle ne change le statut de personne d'autre.
  */
-export async function addGuest(
+export async function addParticipant(
   eventId: string,
-  guestName: string,
+  cible: { userId: string } | { guestName: string },
 ): Promise<ActionState> {
   const parsedId = eventIdSchema.safeParse(eventId);
   if (!parsedId.success) {
     return { ok: false, message: "Événement invalide." };
   }
-  const parsedName = guestNameSchema.safeParse(guestName);
-  if (!parsedName.success) {
-    return { ok: false, message: parsedName.error.issues[0].message };
+
+  let ligne: { user_id: string } | { guest_name: string };
+  if ("userId" in cible) {
+    const parsedUser = z.uuid().safeParse(cible.userId);
+    if (!parsedUser.success) return { ok: false, message: "Membre invalide." };
+    ligne = { user_id: parsedUser.data };
+  } else {
+    const parsedName = guestNameSchema.safeParse(cible.guestName);
+    if (!parsedName.success) {
+      return { ok: false, message: parsedName.error.issues[0].message };
+    }
+    ligne = { guest_name: parsedName.data };
   }
 
-  const acces = await assertPeutOrganiser(parsedId.data);
+  const acces = await assertPeutAjouter(parsedId.data);
   if (!acces.ok) return { ok: false, message: acces.erreur };
 
   // Le client service_role ne repasse pas par la RLS, qui refuse toute
   // inscription sur une activité annulée : on le revérifie ici, faute de
   // quoi la règle disparaîtrait par cette porte.
-  // Une activité commencée ou terminée reste en revanche ouverte à
-  // l'organisateur : il doit pouvoir y ajouter quelqu'un qui a joué sans
-  // s'être inscrit, pour que son score puisse être saisi.
   if (acces.event.status !== "open") {
     return { ok: false, message: "Cette activité est annulée." };
   }
   const commencee = new Date(acces.event.starts_at).getTime() < Date.now();
 
-  const { error } = await createAdminClient()
+  const admin = createAdminClient();
+  let nom: string;
+  if ("user_id" in ligne) {
+    const { data: membre } = await admin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", ligne.user_id)
+      .single();
+    if (!membre) return { ok: false, message: "Membre introuvable." };
+    nom = membre.display_name;
+  } else {
+    nom = ligne.guest_name;
+  }
+
+  const { error } = await admin
     .from("registrations")
-    .insert({ event_id: parsedId.data, guest_name: parsedName.data });
+    .insert({ event_id: parsedId.data, ...ligne });
 
   if (error) {
-    console.error("addGuest :", error);
+    // Index unique (event_id, user_id) des inscriptions actives.
+    if (error.code === "23505") {
+      return { ok: false, message: `${nom} est déjà inscrit·e.` };
+    }
+    console.error("addParticipant :", error);
     return { ok: false, message: "L'ajout a échoué. Réessayez." };
   }
 
-  const { data: summary } = await createAdminClient()
+  const { data: summary } = await admin
     .from("event_summary")
     .select("title, capacity, registered_count, spots_left")
     .eq("id", parsedId.data)
@@ -603,7 +651,7 @@ export async function addGuest(
   if (summary && !commencee) {
     await sendTeamsNotification(
       parsedId.data,
-      `➕ ${parsedName.data} est ajouté·e à « ${summary.title} »`,
+      `➕ ${nom} est ajouté·e à « ${summary.title} »`,
       [
         fillLine(summary),
         acces.profile ? `Ajouté·e par ${acces.profile.display_name}.` : "",
@@ -612,7 +660,7 @@ export async function addGuest(
     );
   }
 
-  return { ok: true, message: `${parsedName.data} a été ajouté·e.` };
+  return { ok: true, message: `${nom} a été ajouté·e.` };
 }
 
 /**

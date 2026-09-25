@@ -135,6 +135,22 @@ export function useManyParticipants(eventIds: string[]) {
   });
 }
 
+/** Tous les membres du site, par ordre alphabétique (ajout d'un participant). */
+export function useMembers() {
+  return useQuery({
+    queryKey: ["profiles", "tous"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .order("display_name", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 /** Profil public d'un membre (organisateur d'un événement). */
 export function useProfile(userId: string | undefined) {
   return useQuery({

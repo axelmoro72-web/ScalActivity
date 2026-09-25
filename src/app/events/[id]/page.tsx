@@ -6,7 +6,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  addGuest,
+  addParticipant,
   cancelEvent,
   deleteEvent,
   deleteMessage,
@@ -29,6 +29,10 @@ import { phase } from "@/lib/cycle";
 import { lienJoueur, resumeResultat, type Resultat } from "@/lib/classement";
 import { formatRang, rangsPeche } from "@/lib/resultats";
 import { ScoreDialog, Tracabilite } from "@/components/score-dialog";
+import {
+  AjoutParticipant,
+  type CibleAjout,
+} from "@/components/ajout-participant";
 import {
   dayOfMonth,
   formatCents,
@@ -425,13 +429,9 @@ export default function EventDetailPage({
     mutationFn: () => unregisterFromEvent(id),
     onSuccess: onSettled,
   });
-  const [guestName, setGuestName] = useState("");
-  const addGuestMutation = useMutation({
-    mutationFn: (nom: string) => addGuest(id, nom),
-    onSuccess: (state) => {
-      if (state?.ok) setGuestName("");
-      onSettled(state);
-    },
+  const addMutation = useMutation({
+    mutationFn: (cible: CibleAjout) => addParticipant(id, cible),
+    onSuccess: onSettled,
   });
   const removeMutation = useMutation({
     mutationFn: (registrationId: number) =>
@@ -476,6 +476,8 @@ export default function EventDetailPage({
   const mine = participants?.find((p) => p.user_id === me?.id);
   const owner = me?.id === event.created_by || me?.role === "admin";
   const canManage = !cancelled && owner;
+  // Tout inscrit peut ajouter quelqu'un (le serveur applique la même règle).
+  const canAdd = !cancelled && (owner || !!mine);
   const busy =
     registerMutation.isPending ||
     unregisterMutation.isPending ||
@@ -702,39 +704,21 @@ export default function EventDetailPage({
 
           {/* Aussi après le début : on régularise quelqu'un qui a joué
               sans s'être inscrit, pour pouvoir saisir son score. */}
-          {canManage && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const nom = guestName.trim();
-                if (nom.length === 0 || addGuestMutation.isPending) return;
-                addGuestMutation.mutate(nom);
-              }}
-              className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-[var(--border)] pt-3.5"
-            >
-              <input
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                maxLength={60}
-                placeholder="Ajouter quelqu'un (Prénom Nom)"
-                aria-label="Nom du participant à ajouter"
-                className="h-9 min-w-0 flex-1 rounded-lg border border-[var(--input)] bg-transparent px-2.5 text-sm outline-none focus-visible:border-[var(--vert)]"
-              />
-              <button
-                type="submit"
-                disabled={
-                  guestName.trim().length === 0 || addGuestMutation.isPending
-                }
-                className="grotesk h-9 flex-none cursor-pointer rounded-full bg-[var(--vert)] px-4 text-[13px] font-bold text-[var(--header-texte)] transition-colors hover:bg-[var(--vert-hover)] disabled:opacity-50"
-              >
-                {addGuestMutation.isPending ? "Ajout…" : "Ajouter"}
-              </button>
-              <p className="w-full text-xs text-[var(--texte-3)]">
-                {past
-                  ? "Pour quelqu'un qui a participé sans s'être inscrit : il pourra figurer dans le score. S'il n'y a plus de place, il passe en liste d'attente — augmentez alors le nombre de places."
-                  : "Pour un invité sans compte, ou un collègue qui vous a répondu de vive voix. Il ne recevra pas de notification."}
-              </p>
-            </form>
+          {canAdd && (
+            <AjoutParticipant
+              dejaInscrits={(participants ?? []).flatMap((p) =>
+                p.user_id ? [p.user_id] : [],
+              )}
+              pending={addMutation.isPending}
+              aide={
+                past
+                  ? "Pour quelqu'un qui a participé sans s'être inscrit : il pourra figurer dans le score. S'il n'y a plus de place, il passe en liste d'attente — l'organisateur peut alors augmenter le nombre de places."
+                  : "Un collègue de la liste, ou un invité sans compte sous son prénom et son nom. Il ne recevra pas de notification."
+              }
+              onAdd={async (cible) =>
+                !!(await addMutation.mutateAsync(cible))?.ok
+              }
+            />
           )}
         </div>
 
