@@ -13,6 +13,8 @@ import {
 import { dateCourte } from "@/lib/format";
 import { formatRang, formatSets, type Issue } from "@/lib/resultats";
 import { AvatarInitials } from "@/components/avatar-initials";
+import { NomJoueur } from "@/components/nom-joueur";
+import type { JoueurResultat } from "@/lib/classement";
 
 const ISSUE: Record<Issue, { libelle: string; style: string }> = {
   V: { libelle: "V", style: "bg-[var(--vert)] text-[var(--lime)]" },
@@ -20,13 +22,29 @@ const ISSUE: Record<Issue, { libelle: string; style: string }> = {
   D: { libelle: "D", style: "bg-[var(--rouge-pale)] text-[var(--rouge)]" },
 };
 
-function Stat({ label, valeur, detail }: { label: string; valeur: string; detail?: string }) {
+function Stat({
+  label,
+  valeur,
+  detail,
+  ton,
+}: {
+  label: string;
+  valeur: string;
+  detail?: string;
+  ton?: "victoire" | "defaite";
+}) {
+  const couleur =
+    ton === "victoire"
+      ? "text-[var(--lime-texte)]"
+      : ton === "defaite"
+        ? "text-[var(--rouge)]"
+        : "";
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-card px-4 py-3.5">
       <div className="grotesk text-[10.5px] font-semibold tracking-[0.08em] uppercase text-[var(--texte-3)]">
         {label}
       </div>
-      <div className="grotesk mt-0.5 text-xl font-bold">{valeur}</div>
+      <div className={`grotesk mt-0.5 text-xl font-bold ${couleur}`}>{valeur}</div>
       {detail && <div className="mt-0.5 text-xs text-[var(--texte-2)]">{detail}</div>}
     </div>
   );
@@ -41,23 +59,52 @@ function libelleSerie(s: StatsJoueur["serie"]): string {
 function StatsGlobales({ stats }: { stats: StatsJoueur }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <Stat label="Points" valeur={String(stats.points)} />
       <Stat
-        label="Matchs"
-        valeur={`${stats.v} / ${stats.n} / ${stats.d}`}
-        detail={`V / N / D sur ${stats.joues} match${stats.joues > 1 ? "s" : ""}`}
-      />
-      <Stat
-        label="Poissons"
-        valeur={String(stats.prises)}
+        label="Matchs joués"
+        valeur={String(stats.joues)}
         detail={
-          stats.meilleurRang
-            ? `meilleur rang : ${formatRang(stats.meilleurRang)}`
-            : `${stats.sorties} sortie${stats.sorties > 1 ? "s" : ""}`
+          stats.joues > 0
+            ? `${Math.round((stats.v / stats.joues) * 100)} % de victoires`
+            : undefined
         }
       />
-      <Stat label="Série en cours" valeur={libelleSerie(stats.serie)} />
+      <Stat label="Victoires" valeur={String(stats.v)} ton="victoire" />
+      <Stat
+        label="Défaites"
+        valeur={String(stats.d)}
+        ton="defaite"
+        detail={stats.n > 0 ? `+ ${stats.n} nul${stats.n > 1 ? "s" : ""}` : undefined}
+      />
+      <Stat label="Points" valeur={String(stats.points)} />
+      {/* Les cases secondaires n'apparaissent que si elles ont un sens :
+          pas de « Poissons 0 » pour qui n'a jamais pêché. */}
+      {stats.joues > 0 && (
+        <Stat label="Série en cours" valeur={libelleSerie(stats.serie)} />
+      )}
+      {stats.sorties > 0 && (
+        <Stat
+          label="Poissons"
+          valeur={String(stats.prises)}
+          detail={`${stats.sorties} sortie${stats.sorties > 1 ? "s" : ""}${
+            stats.meilleurRang ? ` · meilleur rang ${formatRang(stats.meilleurRang)}` : ""
+          }`}
+        />
+      )}
     </div>
+  );
+}
+
+/** "Axel, Paul" avec chaque nom cliquable vers son profil. */
+function Noms({ joueurs }: { joueurs: JoueurResultat[] }) {
+  return (
+    <>
+      {joueurs.map((j, i) => (
+        <span key={j.cle}>
+          {i > 0 && ", "}
+          <NomJoueur nom={j.nom} userId={j.user_id} />
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -81,8 +128,12 @@ function LigneHistorique({ p }: { p: Participation }) {
           {r.lieu && `${r.lieu} · `}
           {p.issue ? (
             <>
-              {p.coequipiers.length > 0 && `avec ${p.coequipiers.join(", ")} · `}
-              contre {p.adversaires.join(", ")}
+              {p.coequipiers.length > 0 && (
+                <>
+                  avec <Noms joueurs={p.coequipiers} /> ·{" "}
+                </>
+              )}
+              contre <Noms joueurs={p.adversaires} />
             </>
           ) : (
             `${p.nbPecheurs} pêcheur${p.nbPecheurs > 1 ? "s" : ""}`

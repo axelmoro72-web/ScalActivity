@@ -307,7 +307,7 @@ describe("profil", () => {
     ];
     const parts = historique(resultats, "Axel");
     expect(parts.map((p) => p.resultat.event_id)).toEqual(["3", "2", "1"]);
-    expect(parts[0].adversaires).toEqual(["Tom"]);
+    expect(parts[0].adversaires.map((j) => j.nom)).toEqual(["Tom"]);
     expect(statsJoueur(parts)).toMatchObject({ points: 6, v: 2, d: 1, serie: { issue: "V", longueur: 2 } });
   });
 

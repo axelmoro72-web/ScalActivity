@@ -116,8 +116,8 @@ export type Participation = {
   issue: Issue | null;
   setsGagnes: number;
   setsPerdus: number;
-  coequipiers: string[];
-  adversaires: string[];
+  coequipiers: JoueurResultat[];
+  adversaires: JoueurResultat[];
   // Pêche
   prises: number | null;
   rang: number | null;
@@ -142,12 +142,12 @@ export function participations(r: Resultat): Participation[] {
           issue: monIssue,
           setsGagnes: equipe === "A" ? bilan.setsA : bilan.setsB,
           setsPerdus: equipe === "A" ? bilan.setsB : bilan.setsA,
-          coequipiers: r.joueurs
-            .filter((o) => o.team === equipe && o.cle !== j.cle)
-            .map((o) => o.nom),
-          adversaires: r.joueurs
-            .filter((o) => o.team !== null && o.team !== equipe)
-            .map((o) => o.nom),
+          coequipiers: r.joueurs.filter(
+            (o) => o.team === equipe && o.cle !== j.cle,
+          ),
+          adversaires: r.joueurs.filter(
+            (o) => o.team !== null && o.team !== equipe,
+          ),
           prises: null,
           rang: null,
           nbPecheurs: 0,

@@ -29,6 +29,7 @@ import { phase } from "@/lib/cycle";
 import { lienJoueur, resumeResultat, type Resultat } from "@/lib/classement";
 import { formatRang, rangsPeche } from "@/lib/resultats";
 import { ScoreDialog, Tracabilite } from "@/components/score-dialog";
+import { NomJoueur } from "@/components/nom-joueur";
 import {
   AjoutParticipant,
   type CibleAjout,
@@ -336,7 +337,7 @@ function Chat({
                     <span
                       className={`grotesk text-sm ${isMe ? "font-semibold" : "font-medium"}`}
                     >
-                      {m.display_name}
+                      <NomJoueur nom={m.display_name} userId={m.user_id} />
                     </span>
                     <span className="text-xs text-[var(--texte-3)]">
                       {messageStamp(m.created_at)}
@@ -590,7 +591,11 @@ export default function EventDetailPage({
             <div className="mt-1.5 flex items-center gap-2">
               <AvatarInitials name={organizer?.display_name ?? "?"} size={26} />
               <span className="grotesk text-sm font-semibold">
-                {organizer?.display_name ?? "…"}
+                {organizer ? (
+                  <NomJoueur nom={organizer.display_name} userId={organizer.id} />
+                ) : (
+                  "…"
+                )}
               </span>
             </div>
           </StatCard>
@@ -671,7 +676,7 @@ export default function EventDetailPage({
                       highlight={p.user_id === me?.id}
                     />
                     <span className="text-sm text-[var(--texte-2)]">
-                      {p.display_name}
+                      <NomJoueur nom={p.display_name} userId={p.user_id} />
                       {p.user_id === me?.id && (
                         <span className="grotesk ml-1 text-xs font-medium text-[var(--lime-texte)]">
                           (vous)
