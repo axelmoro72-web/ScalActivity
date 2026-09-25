@@ -700,7 +700,9 @@ export default function EventDetailPage({
             </>
           )}
 
-          {canManage && !past && (
+          {/* Aussi après le début : on régularise quelqu'un qui a joué
+              sans s'être inscrit, pour pouvoir saisir son score. */}
+          {canManage && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -728,8 +730,9 @@ export default function EventDetailPage({
                 {addGuestMutation.isPending ? "Ajout…" : "Ajouter"}
               </button>
               <p className="w-full text-xs text-[var(--texte-3)]">
-                Pour un invité sans compte, ou un collègue qui vous a répondu
-                de vive voix. Il ne recevra pas de notification.
+                {past
+                  ? "Pour quelqu'un qui a participé sans s'être inscrit : il pourra figurer dans le score. S'il n'y a plus de place, il passe en liste d'attente — augmentez alors le nombre de places."
+                  : "Pour un invité sans compte, ou un collègue qui vous a répondu de vive voix. Il ne recevra pas de notification."}
               </p>
             </form>
           )}

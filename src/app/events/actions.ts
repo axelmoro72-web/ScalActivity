@@ -573,15 +573,16 @@ export async function addGuest(
   const acces = await assertPeutOrganiser(parsedId.data);
   if (!acces.ok) return { ok: false, message: acces.erreur };
 
-  // Le client service_role ne repasse pas par la RLS, qui refusait déjà
-  // toute inscription sur une activité annulée ou passée : on le
-  // revérifie ici, faute de quoi la règle disparaîtrait par cette porte.
+  // Le client service_role ne repasse pas par la RLS, qui refuse toute
+  // inscription sur une activité annulée : on le revérifie ici, faute de
+  // quoi la règle disparaîtrait par cette porte.
+  // Une activité commencée ou terminée reste en revanche ouverte à
+  // l'organisateur : il doit pouvoir y ajouter quelqu'un qui a joué sans
+  // s'être inscrit, pour que son score puisse être saisi.
   if (acces.event.status !== "open") {
     return { ok: false, message: "Cette activité est annulée." };
   }
-  if (new Date(acces.event.starts_at).getTime() < Date.now()) {
-    return { ok: false, message: "Cette activité est déjà passée." };
-  }
+  const commencee = new Date(acces.event.starts_at).getTime() < Date.now();
 
   const { error } = await createAdminClient()
     .from("registrations")
@@ -597,7 +598,9 @@ export async function addGuest(
     .select("title, capacity, registered_count, spots_left")
     .eq("id", parsedId.data)
     .single();
-  if (summary) {
+  // Rien à annoncer sur Teams pour une activité déjà commencée : c'est
+  // une régularisation, pas une place qui se remplit.
+  if (summary && !commencee) {
     await sendTeamsNotification(
       parsedId.data,
       `➕ ${parsedName.data} est ajouté·e à « ${summary.title} »`,
